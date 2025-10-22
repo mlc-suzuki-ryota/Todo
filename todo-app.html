@@ -515,13 +515,6 @@
             padding: 0;
         }
 
-        .insights h3 {
-            margin-bottom: 16px;
-            color: #ffffff;
-            font-size: 18px;
-            font-weight: 600;
-        }
-
         .insight-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -834,7 +827,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>TODO</h1>
+        <h1 id="appTitle">TODO</h1>
         <div class="stats">
             <div class="stat"><span>全タスク</span> <strong id="totalTasks">0</strong></div>
             <div class="stat"><span>完了</span> <strong id="completedTasks">0</strong></div>
@@ -951,7 +944,11 @@
             accessCount: 0,
             loginDays: 1,
             consecutiveLoginDays: 1,
-            lastAccessDate: null
+            lastAccessDate: null,
+            lastCompletedDate: null, // 新規追加
+            consecutiveCompletedDays: 0, // 新規追加
+            easterEggClickCount: 0, // 新規追加
+            searchCount: 0 // 新規追加
         };
         let achievements = {};
         let unlockedAchievements = {};
@@ -968,6 +965,7 @@
             renderAchievements();
             checkAchievements();
             setupKeyboardShortcuts();
+            setupEasterEgg(); // 新規追加
         }
 
         // アチーブメント定義
@@ -982,13 +980,67 @@
                 completed_10: { name: 'タスクキラー', description: '10個のタスクを完了！', condition: { type: 'completed', value: 10 }, icon: '💥' },
                 completed_50: { name: 'タスクマスター', description: '50個のタスクを完了！お見事！', condition: { type: 'completed', value: 50 }, icon: '🎯' },
                 completed_100: { name: '生産性の鬼', description: '100個のタスクを完了！素晴らしい！', condition: { type: 'completed', value: 100 }, icon: '👹' },
+
+                // --- 新しいアチーブメント ---
+                // 時間・期限関連
+                early_bird: { name: '早起き鳥', description: '午前6時までにタスクを完了する。', condition: { type: 'time_of_day', hour: 6, before: true }, icon: '🐦' },
+                night_owl: { name: '夜更かしフクロウ', description: '深夜0時以降にタスクを完了する。', condition: { type: 'time_of_day', hour: 0, after: true }, icon: '🦉' },
+                on_time_1: { name: '期限厳守 (初級)', description: '期限日までにタスクを1個完了する。', condition: { type: 'on_time_completed', value: 1 }, icon: '⏱️' },
+                on_time_10: { name: '期限厳守 (中級)', description: '期限日までにタスクを10個完了する。', condition: { type: 'on_time_completed', value: 10 }, icon: '⏰' },
+                future_planner: { name: '未来の自分へ', description: '1ヶ月以上先の期限を設定したタスクを完了する。', condition: { type: 'future_due', days: 30 }, icon: '🔮' },
+                past_due_hero_1: { name: '期限切れヒーロー (初級)', description: '期限切れのタスクを1個完了する。', condition: { type: 'past_due_completed', value: 1 }, icon: '🦸' },
+                past_due_hero_5: { name: '期限切れヒーロー (中級)', description: '期限切れのタスクを5個完了する。', condition: { type: 'past_due_completed', value: 5 }, icon: '🦹' },
+
+                // 優先度関連
+                high_priority_master_1: { name: '高優先度マスター (初級)', description: '高優先度タスクを1個完了する。', condition: { type: 'priority_completed', priority: 'high', value: 1 }, icon: '🔥' },
+                high_priority_master_10: { name: '高優先度マスター (中級)', description: '高優先度タスクを10個完了する。', condition: { type: 'priority_completed', priority: 'high', value: 10 }, icon: '🚀' },
+                balanced_1: { name: 'バランスの取れた人', description: '高・中・低の優先度タスクをそれぞれ1個ずつ完了する。', condition: { type: 'balanced_priority', value: 1 }, icon: '⚖️' },
+
+                // タグ・フォルダ関連
+                tag_collector_3: { name: 'タグコレクター (初級)', description: '3種類のタグを使用する。', condition: { type: 'unique_tags', value: 3 }, icon: '🏷️' },
+                tag_collector_5: { name: 'タグコレクター (中級)', description: '5種類のタグを使用する。', condition: { type: 'unique_tags', value: 5 }, icon: '🔖' },
+                folder_organizer_3: { name: 'フォルダ整理術 (初級)', description: '3個のフォルダを作成する。', condition: { type: 'unique_folders', value: 3 }, icon: '🗂️' },
+                folder_organizer_5: { name: 'フォルダ整理術 (中級)', description: '5個のフォルダを作成する。', condition: { type: 'unique_folders', value: 5 }, icon: '📂' },
+
+                // サブタスク関連
+                parent_task_completed_1: { name: '親タスク完了 (初級)', description: 'サブタスクを持つ親タスクを1個完了する。', condition: { type: 'parent_completed', value: 1 }, icon: '🌳' },
+                parent_task_completed_5: { name: '親タスク完了 (中級)', description: 'サブタスクを持つ親タスクを5個完了する。', condition: { type: 'parent_completed', value: 5 }, icon: '🌲' },
+                subtask_master_1: { name: 'サブタスクマスター (初級)', description: 'サブタスクを1個完了する。', condition: { type: 'subtask_completed', value: 1 }, icon: '🌿' },
+                subtask_master_10: { name: 'サブタスクマスター (中級)', description: 'サブタスクを10個完了する。', condition: { type: 'subtask_completed', value: 10 }, icon: '🌱' },
+                perfectionist: { name: '完璧主義者', description: '全てのサブタスクを完了してから親タスクを完了する。', condition: { type: 'perfectionist' }, icon: '💯' },
+
+                // 連続記録関連
+                consecutive_login_3: { name: '連続ログイン (3日)', description: '3日間連続でアプリにアクセスする。', condition: { type: 'consecutive_login', value: 3 }, icon: '🗓️' },
+                consecutive_login_7: { name: '連続ログイン (7日)', description: '7日間連続でアプリにアクセスする。', condition: { type: 'consecutive_login', value: 7 }, icon: '📅' },
+                consecutive_completed_3: { name: '連続タスク完了 (3日)', description: '3日間連続でタスクを完了する。', condition: { type: 'consecutive_completed', value: 3 }, icon: ' streak' },
+                consecutive_completed_7: { name: '連続タスク完了 (7日)', description: '7日間連続でタスクを完了する。', condition: { type: 'consecutive_completed', value: 7 }, icon: '🔥' },
+
+                // ユニーク・隠しアチーブメント
+                easter_egg_click: { name: '隠しコマンド', description: 'アプリのタイトルを10回クリックする。', condition: { type: 'easter_egg_click', value: 10 }, icon: '🥚' },
+                search_master_1: { name: '検索の達人 (初級)', description: '検索機能を1回使用する。', condition: { type: 'search_count', value: 1 }, icon: '🔍' },
+                search_master_10: { name: '検索の達人 (中級)', description: '検索機能を10回使用する。', condition: { type: 'search_count', value: 10 }, icon: '🔎' },
             };
         }
 
         // アクセス追跡
         function trackAccess() {
+            const today = new Date().toISOString().split('T')[0];
             activityData.accessCount++;
-            activityData.lastAccessDate = new Date().toISOString();
+
+            if (activityData.lastAccessDate) {
+                const lastAccess = new Date(activityData.lastAccessDate);
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+
+                if (lastAccess.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0]) {
+                    activityData.consecutiveLoginDays++;
+                } else if (lastAccess.toISOString().split('T')[0] !== today) {
+                    activityData.consecutiveLoginDays = 1;
+                }
+            } else {
+                activityData.consecutiveLoginDays = 1;
+            }
+            activityData.lastAccessDate = today;
             saveToLocalStorage();
         }
 
@@ -1056,6 +1108,7 @@
             saveToLocalStorage();
             cleanupOrphanedTasks();
             renderAll();
+            checkAchievements(); // タスク追加時にもチェック
             
             input.focus();
         }
@@ -1064,6 +1117,7 @@
         function toggleTask(id) {
             const task = tasks.find(t => t.id === id);
             if (task) {
+                const wasCompleted = task.completed;
                 task.completed = !task.completed;
                 task.completedAt = task.completed ? new Date().toISOString() : null;
                 
@@ -1077,11 +1131,31 @@
                     });
                 }
 
+                // 連続タスク完了日数の更新
+                if (task.completed && !wasCompleted) { // 新しく完了した場合のみ
+                    const today = new Date().toISOString().split('T')[0];
+                    if (activityData.lastCompletedDate) {
+                        const lastCompleted = new Date(activityData.lastCompletedDate);
+                        const yesterday = new Date(today);
+                        yesterday.setDate(yesterday.getDate() - 1);
+
+                        if (lastCompleted.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0]) {
+                            activityData.consecutiveCompletedDays++;
+                        } else if (lastCompleted.toISOString().split('T')[0] !== today) {
+                            activityData.consecutiveCompletedDays = 1;
+                        }
+                    } else {
+                        activityData.consecutiveCompletedDays = 1;
+                    }
+                    activityData.lastCompletedDate = today;
+                } else if (!task.completed && wasCompleted) { // 完了が解除された場合
+                    // 連続記録はリセットしないが、lastCompletedDateは再計算が必要になる可能性
+                    // 今回はシンプルに、完了解除では連続記録をリセットしない
+                }
+
                 saveToLocalStorage();
                 renderAll();
-                if (task.completed) {
-                    checkAchievements();
-                }
+                checkAchievements(); // タスク完了時にもチェック
             }
         }
 
@@ -1118,6 +1192,7 @@
                 saveToLocalStorage();
                 cleanupOrphanedTasks();
                 renderAll();
+                checkAchievements(); // タスク削除時にもチェック
             }
         }
 
@@ -1186,6 +1261,7 @@
                 folders.push(name.trim());
                 saveToLocalStorage();
                 renderFolders();
+                checkAchievements(); // フォルダ追加時にもチェック
             } else if (folders.includes(name.trim())) {
                 alert('そのフォルダは既に存在します');
             }
@@ -1203,7 +1279,10 @@
 
         // 検索
         function searchTasks() {
+            activityData.searchCount++; // 検索回数をカウント
+            saveToLocalStorage();
             renderTasks();
+            checkAchievements(); // 検索時にもチェック
         }
 
         // タスク表示
@@ -1360,8 +1439,24 @@
 
         // --- アチーブメント関連 ---
         function checkAchievements() {
-            const completedCount = tasks.filter(t => t.completed).length;
+            const completedTasks = tasks.filter(t => t.completed);
+            const completedCount = completedTasks.length;
             const accessCount = activityData.accessCount;
+            const searchCount = activityData.searchCount;
+
+            // 優先度別の完了タスク数
+            const highPriorityCompleted = completedTasks.filter(t => t.priority === 'high').length;
+            const mediumPriorityCompleted = completedTasks.filter(t => t.priority === 'medium').length;
+            const lowPriorityCompleted = completedTasks.filter(t => t.priority === 'low').length;
+
+            // 使用されているユニークなタグとフォルダ
+            const uniqueTags = new Set();
+            tasks.forEach(t => t.tags.forEach(tag => uniqueTags.add(tag)));
+            const uniqueFolders = new Set(folders);
+
+            // サブタスク関連
+            const parentTasksWithSubtasksCompleted = completedTasks.filter(t => t.subtasks.length > 0).length;
+            const subtasksCompletedCount = completedTasks.filter(t => t.parentId !== null).length;
 
             for (const id in achievements) {
                 if (unlockedAchievements[id]) continue;
@@ -1369,10 +1464,95 @@
                 const ach = achievements[id];
                 let conditionMet = false;
 
-                if (ach.condition.type === 'access' && accessCount >= ach.condition.value) {
-                    conditionMet = true;
-                } else if (ach.condition.type === 'completed' && completedCount >= ach.condition.value) {
-                    conditionMet = true;
+                switch (ach.condition.type) {
+                    case 'access':
+                        if (accessCount >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'completed':
+                        if (completedCount >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'time_of_day':
+                        conditionMet = completedTasks.some(t => {
+                            if (!t.completedAt) return false;
+                            const completedHour = new Date(t.completedAt).getHours();
+                            if (ach.condition.before && completedHour < ach.condition.hour) return true;
+                            if (ach.condition.after && completedHour >= ach.condition.hour) return true;
+                            return false;
+                        });
+                        break;
+                    case 'on_time_completed':
+                        const onTimeCompletedCount = completedTasks.filter(t => {
+                            if (!t.dueDate || !t.completedAt) return false;
+                            const dueDate = new Date(t.dueDate);
+                            const completedAt = new Date(t.completedAt);
+                            return completedAt.toISOString().split('T')[0] <= dueDate.toISOString().split('T')[0];
+                        }).length;
+                        if (onTimeCompletedCount >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'future_due':
+                        conditionMet = completedTasks.some(t => {
+                            if (!t.dueDate || !t.createdAt) return false;
+                            const dueDate = new Date(t.dueDate);
+                            const createdAt = new Date(t.createdAt);
+                            const diffTime = Math.abs(dueDate.getTime() - createdAt.getTime());
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            return diffDays >= ach.condition.days;
+                        });
+                        break;
+                    case 'past_due_completed':
+                        const pastDueCompletedCount = completedTasks.filter(t => {
+                            if (!t.dueDate || !t.completedAt) return false;
+                            const dueDate = new Date(t.dueDate);
+                            const completedAt = new Date(t.completedAt);
+                            return completedAt.toISOString().split('T')[0] > dueDate.toISOString().split('T')[0];
+                        }).length;
+                        if (pastDueCompletedCount >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'priority_completed':
+                        const targetPriorityCompleted = completedTasks.filter(t => t.priority === ach.condition.priority).length;
+                        if (targetPriorityCompleted >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'balanced_priority':
+                        if (highPriorityCompleted >= ach.condition.value &&
+                            mediumPriorityCompleted >= ach.condition.value &&
+                            lowPriorityCompleted >= ach.condition.value) {
+                            conditionMet = true;
+                        }
+                        break;
+                    case 'unique_tags':
+                        if (uniqueTags.size >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'unique_folders':
+                        if (uniqueFolders.size >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'parent_completed':
+                        if (parentTasksWithSubtasksCompleted >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'subtask_completed':
+                        if (subtasksCompletedCount >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'perfectionist':
+                        conditionMet = completedTasks.some(t => {
+                            if (t.subtasks.length === 0) return false; // サブタスクがない親タスクは対象外
+                            // 親タスクが完了しており、かつ全てのサブタスクも完了しているか
+                            return t.completed && t.subtasks.every(subId => {
+                                const subtask = tasks.find(st => st.id === subId);
+                                return subtask && subtask.completed;
+                            });
+                        });
+                        break;
+                    case 'consecutive_login':
+                        if (activityData.consecutiveLoginDays >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'consecutive_completed':
+                        if (activityData.consecutiveCompletedDays >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'easter_egg_click':
+                        if (activityData.easterEggClickCount >= ach.condition.value) conditionMet = true;
+                        break;
+                    case 'search_count':
+                        if (activityData.searchCount >= ach.condition.value) conditionMet = true;
+                        break;
                 }
 
                 if (conditionMet) {
@@ -1572,6 +1752,18 @@
                     document.getElementById('searchInput').focus();
                 }
             });
+        }
+
+        // イースターエッグのセットアップ
+        function setupEasterEgg() {
+            const appTitle = document.getElementById('appTitle');
+            if (appTitle) {
+                appTitle.addEventListener('click', () => {
+                    activityData.easterEggClickCount++;
+                    saveToLocalStorage();
+                    checkAchievements();
+                });
+            }
         }
 
         // --- データ永続化 ---
