@@ -34,6 +34,13 @@
             letter-spacing: -0.5px;
         }
 
+        h3 {
+            margin-bottom: 16px;
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
         .folders {
             display: flex;
             gap: 8px;
@@ -587,13 +594,6 @@
             margin-bottom: 40px;
         }
 
-        .timeline-section h3 {
-            margin-bottom: 16px;
-            color: #ffffff;
-            font-size: 18px;
-            font-weight: 600;
-        }
-
         .timeline-container {
             background: #0a0a0a;
             border: 1px solid #1a1a1a;
@@ -745,6 +745,91 @@
         .timeline-chevron.collapsed {
             transform: rotate(-90deg);
         }
+
+        /* アチーブメント通知 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease-out;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .toast-icon { font-size: 24px; }
+        .toast-title { font-weight: 600; color: #fff; }
+        .toast-message { font-size: 14px; color: #aaa; }
+
+        /* アチーブメント一覧 */
+        .achievements-section {
+            margin-top: 40px;
+        }
+        .achievements-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+        }
+        .achievement-card {
+            background: #141414;
+            border: 1px solid #222;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.2s;
+        }
+        .achievement-card.unlocked {
+            border-left: 4px solid #ffa502;
+        }
+        .achievement-card.unlocked:hover {
+            background: #1a1a1a;
+            border-color: #333;
+        }
+        .achievement-icon {
+            font-size: 32px;
+            opacity: 0.3;
+        }
+        .achievement-card.unlocked .achievement-icon {
+            opacity: 1;
+            color: #ffa502;
+        }
+        .achievement-info .name {
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .achievement-info .description {
+            font-size: 13px;
+            color: #888;
+        }
+        .achievement-card.unlocked .achievement-info .description {
+            color: #aaa;
+        }
+        .achievement-info .unlocked-date {
+            font-size: 11px;
+            color: #666;
+            margin-top: 8px;
+        }
+        .achievement-card:not(.unlocked) {
+            filter: grayscale(80%);
+            opacity: 0.6;
+        }
+        .achievement-card:not(.unlocked) .achievement-info .name {
+            color: #888;
+        }
     </style>
 </head>
 <body>
@@ -831,12 +916,27 @@
             </div>
         </div>
 
+        <div class="achievements-section">
+            <h3>アチーブメント</h3>
+            <div class="achievements-grid" id="achievementsGrid">
+                <!-- アチーブメントがここに表示されます -->
+            </div>
+        </div>
+
         <div class="keyboard-hint">
             <strong>ショートカット</strong> 
             <kbd>Ctrl+Enter</kbd> タスク追加 
             <kbd>Ctrl+F</kbd> 検索フォーカス 
             <kbd>/</kbd> クイック検索 
             コンソールで <code>checkDataIntegrity()</code> を実行してデータ整合性チェック
+        </div>
+    </div>
+
+    <div id="achievementToast" class="toast">
+        <div class="toast-icon">🏆</div>
+        <div class="toast-content">
+            <div class="toast-title">アチーブメント達成！</div>
+            <div class="toast-message" id="toastMessage"></div>
         </div>
     </div>
 
@@ -849,20 +949,40 @@
         let taskIdCounter = 1;
         let activityData = {
             accessCount: 0,
-            loginDays: 1, // サンプル値
-            consecutiveLoginDays: 1, // サンプル値
+            loginDays: 1,
+            consecutiveLoginDays: 1,
             lastAccessDate: null
         };
+        let achievements = {};
+        let unlockedAchievements = {};
 
         // 初期化
         function init() {
+            defineAchievements();
             loadFromLocalStorage();
             trackAccess();
             renderFolders();
             renderTasks();
             renderTimeline();
             updateStats();
+            renderAchievements();
+            checkAchievements();
             setupKeyboardShortcuts();
+        }
+
+        // アチーブメント定義
+        function defineAchievements() {
+            achievements = {
+                access_1: { name: '最初の訪問', description: '初めてアプリを使いました。', condition: { type: 'access', value: 1 }, icon: '👋' },
+                access_10: { name: '常連さん', description: '10回目の訪問です！', condition: { type: 'access', value: 10 }, icon: '🚶‍♂️' },
+                access_50: { name: 'ヘビーユーザー', description: '50回も訪問してくれました！', condition: { type: 'access', value: 50 }, icon: '🏃‍♂️' },
+                access_100: { name: '殿堂入り', description: '100回訪問！もうあなたなしではいられません。', condition: { type: 'access', value: 100 }, icon: '👑' },
+                
+                completed_1: { name: 'はじめの一歩', description: '最初のタスクを完了しました。', condition: { type: 'completed', value: 1 }, icon: '✅' },
+                completed_10: { name: 'タスクキラー', description: '10個のタスクを完了！', condition: { type: 'completed', value: 10 }, icon: '💥' },
+                completed_50: { name: 'タスクマスター', description: '50個のタスクを完了！お見事！', condition: { type: 'completed', value: 50 }, icon: '🎯' },
+                completed_100: { name: '生産性の鬼', description: '100個のタスクを完了！素晴らしい！', condition: { type: 'completed', value: 100 }, icon: '👹' },
+            };
         }
 
         // アクセス追跡
@@ -884,7 +1004,6 @@
             const dueDate = document.getElementById('dueDateInput').value;
             const parentId = document.getElementById('parentTaskInput').value;
 
-            // 親タスクバリデーション
             let validParentId = null;
             if (parentId) {
                 const parsedParentId = parseInt(parentId);
@@ -895,9 +1014,9 @@
                     return;
                 }
                 
-                // サブタスクを親にしようとしている場合は警告
                 if (parent.parentId !== null) {
-                    if (!confirm(`警告: タスク「${parent.text}」は既にサブタスクです。\nこのタスクを親にすると表示されなくなりますが続けますか？`)) {
+                    if (!confirm(`警告: タスク「${parent.text}」は既にサブタスクです。
+このタスクを親にすると表示されなくなりますが続けますか？`)) {
                         return;
                     }
                 }
@@ -928,7 +1047,6 @@
 
             tasks.push(task);
             
-            // 入力クリア
             input.value = '';
             document.getElementById('tagInput').value = '';
             document.getElementById('prioritySelect').value = 'medium';
@@ -937,10 +1055,7 @@
 
             saveToLocalStorage();
             cleanupOrphanedTasks();
-            renderFolders();
-            renderTasks();
-            renderTimeline();
-            updateStats();
+            renderAll();
             
             input.focus();
         }
@@ -952,7 +1067,6 @@
                 task.completed = !task.completed;
                 task.completedAt = task.completed ? new Date().toISOString() : null;
                 
-                // サブタスクも同時に完了
                 if (task.completed && task.subtasks.length > 0) {
                     task.subtasks.forEach(subId => {
                         const subtask = tasks.find(t => t.id === subId);
@@ -964,9 +1078,10 @@
                 }
 
                 saveToLocalStorage();
-                renderTasks();
-                renderTimeline();
-                updateStats();
+                renderAll();
+                if (task.completed) {
+                    checkAchievements();
+                }
             }
         }
 
@@ -975,14 +1090,13 @@
             const task = tasks.find(t => t.id === id);
             if (!task) return;
 
-            // サブタスクがある場合は警告
             let confirmMsg = 'このタスクを削除しますか？';
             if (task.subtasks.length > 0) {
-                confirmMsg = `このタスクには${task.subtasks.length}個のサブタスクがあります。\nサブタスクも一緒に削除されますが、よろしいですか？`;
+                confirmMsg = `このタスクには${task.subtasks.length}個のサブタスクがあります。
+サブタスクも一緒に削除されますが、よろしいですか？`;
             }
 
             if (confirm(confirmMsg)) {
-                // サブタスクを再帰的に削除
                 const toDelete = new Set([id]);
                 const collectSubtasks = (taskId) => {
                     const t = tasks.find(task => task.id === taskId);
@@ -997,16 +1111,13 @@
 
                 tasks = tasks.filter(t => !toDelete.has(t.id));
 
-                // 親タスクのサブタスク参照も削除
                 tasks.forEach(t => {
                     t.subtasks = t.subtasks.filter(subId => !toDelete.has(subId));
                 });
 
                 saveToLocalStorage();
                 cleanupOrphanedTasks();
-                renderTasks();
-                renderTimeline();
-                updateStats();
+                renderAll();
             }
         }
 
@@ -1019,8 +1130,7 @@
             if (newText !== null && newText.trim()) {
                 task.text = newText.trim();
                 saveToLocalStorage();
-                renderTasks();
-                renderTimeline();
+                renderAll();
             }
         }
 
@@ -1043,7 +1153,6 @@
                 folderCounts[f] = tasks.filter(t => !t.parentId && t.folder === f).length;
             });
 
-            // フォルダバーを更新
             container.innerHTML = `
                 <button class="folder-btn ${currentFolder === null ? 'active' : ''}" onclick="switchFolder(null)">
                     <span class="folder-name">すべて</span>
@@ -1063,7 +1172,6 @@
                 </button>
             `;
 
-            // セレクトボックスも更新
             if (folderSelect) {
                 folderSelect.innerHTML = folders.map(f => 
                     `<option value="${f}">${f}</option>`
@@ -1085,7 +1193,6 @@
         function filterTasks(filter) {
             currentFilter = filter;
             
-            // ボタンのアクティブ状態更新
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
@@ -1104,14 +1211,12 @@
             const container = document.getElementById('tasksContainer');
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
 
-            let filteredTasks = tasks.filter(t => !t.parentId); // 親タスクのみ
+            let filteredTasks = tasks.filter(t => !t.parentId);
 
-            // フォルダフィルタ
             if (currentFolder !== null) {
                 filteredTasks = filteredTasks.filter(t => t.folder === currentFolder);
             }
 
-            // フィルタ適用
             if (currentFilter === 'active') {
                 filteredTasks = filteredTasks.filter(t => !t.completed);
             } else if (currentFilter === 'completed') {
@@ -1123,7 +1228,6 @@
                 filteredTasks = filteredTasks.filter(t => t.dueDate && t.dueDate <= today);
             }
 
-            // 検索適用
             if (searchTerm) {
                 filteredTasks = filteredTasks.filter(t => 
                     t.text.toLowerCase().includes(searchTerm) ||
@@ -1131,7 +1235,6 @@
                 );
             }
 
-            // ソート: 優先度 > 期限 > 作成日
             filteredTasks.sort((a, b) => {
                 const priorityOrder = { high: 0, medium: 1, low: 2 };
                 if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
@@ -1192,7 +1295,7 @@
                                                     ${subtask.priority === 'high' ? '高' : subtask.priority === 'low' ? '低' : ''}
                                                 </span>
                                             ` : ''}
-                                            ${subtask.dueDate ? `<span class="${subDueDateClass}">${formatDate(subtask.dueDate)}</span>` : ''}
+                                            ${subtask.dueDate ? `<span class="subDueDateClass">${formatDate(subtask.dueDate)}</span>` : ''}
                                         </div>
                                     ` : ''}
                                 </div>
@@ -1255,7 +1358,81 @@
             `;
         }
 
-        // 統計更新
+        // --- アチーブメント関連 ---
+        function checkAchievements() {
+            const completedCount = tasks.filter(t => t.completed).length;
+            const accessCount = activityData.accessCount;
+
+            for (const id in achievements) {
+                if (unlockedAchievements[id]) continue;
+
+                const ach = achievements[id];
+                let conditionMet = false;
+
+                if (ach.condition.type === 'access' && accessCount >= ach.condition.value) {
+                    conditionMet = true;
+                } else if (ach.condition.type === 'completed' && completedCount >= ach.condition.value) {
+                    conditionMet = true;
+                }
+
+                if (conditionMet) {
+                    unlockAchievement(id);
+                }
+            }
+        }
+
+        function unlockAchievement(id) {
+            if (unlockedAchievements[id]) return;
+
+            const ach = achievements[id];
+            showAchievementToast(ach);
+
+            unlockedAchievements[id] = {
+                unlockedAt: new Date().toISOString()
+            };
+            saveToLocalStorage();
+            renderAchievements();
+        }
+
+        function showAchievementToast(achievement) {
+            const toast = document.getElementById('achievementToast');
+            const message = document.getElementById('toastMessage');
+            
+            message.textContent = `'${achievement.name}' を達成しました！`;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 4000);
+        }
+
+        function renderAchievements() {
+            const grid = document.getElementById('achievementsGrid');
+            grid.innerHTML = Object.entries(achievements).map(([id, ach]) => {
+                const unlocked = unlockedAchievements[id];
+                const unlockedDate = unlocked ? new Date(unlocked.unlockedAt).toLocaleDateString() : null;
+
+                return `
+                    <div class="achievement-card ${unlocked ? 'unlocked' : ''}">
+                        <div class="achievement-icon">${ach.icon}</div>
+                        <div class="achievement-info">
+                            <div class="name">${ach.name}</div>
+                            <div class="description">${ach.description}</div>
+                            ${unlocked ? `<div class="unlocked-date">${unlockedDate}に達成</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- 統計・描画関連 ---
+        function renderAll() {
+            renderFolders();
+            renderTasks();
+            renderTimeline();
+            updateStats();
+        }
+
         function updateStats() {
             const total = tasks.length;
             const completed = tasks.filter(t => t.completed).length;
@@ -1266,11 +1443,9 @@
             document.getElementById('remainingTasks').textContent = remaining;
             document.getElementById('accessCount').textContent = activityData.accessCount;
 
-            // インサイト
             updateInsights();
         }
 
-        // タイムライン表示/非表示
         let timelineExpanded = true;
         function toggleTimeline() {
             timelineExpanded = !timelineExpanded;
@@ -1286,11 +1461,9 @@
             }
         }
 
-        // タイムライン描画
         function renderTimeline() {
             const container = document.getElementById('timelineContainer');
             
-            // 今週の日付を計算（月曜始まり）
             const today = new Date();
             const dayOfWeek = today.getDay();
             const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -1304,7 +1477,6 @@
 
             const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
             
-            // ヘッダー生成
             const headerHtml = weekDays.map((date, i) => {
                 const isToday = date.toDateString() === today.toDateString();
                 return `
@@ -1315,22 +1487,16 @@
                 `;
             }).join('');
 
-            // 各日のタスクを集計
             const tasksByDay = weekDays.map(date => {
                 const dateStr = date.toISOString().split('T')[0];
                 return tasks.filter(t => !t.parentId && t.dueDate === dateStr);
             });
 
-            // コンテンツ生成
             const contentHtml = tasksByDay.map((dayTasks, i) => {
                 const isToday = weekDays[i].toDateString() === today.toDateString();
                 
                 if (dayTasks.length === 0) {
-                    return `
-                        <div class="timeline-column ${isToday ? 'today' : ''}">
-                            <div class="timeline-empty">—</div>
-                        </div>
-                    `;
+                    return `<div class="timeline-column ${isToday ? 'today' : ''}"><div class="timeline-empty">—</div></div>`;
                 }
 
                 const tasksHtml = dayTasks.map(task => `
@@ -1345,24 +1511,15 @@
                     </div>
                 `).join('');
 
-                return `
-                    <div class="timeline-column ${isToday ? 'today' : ''}">
-                        ${tasksHtml}
-                    </div>
-                `;
+                return `<div class="timeline-column ${isToday ? 'today' : ''}">${tasksHtml}</div>`;
             }).join('');
 
             container.innerHTML = `
-                <div class="timeline-header">
-                    ${headerHtml}
-                </div>
-                <div class="timeline-content">
-                    ${contentHtml}
-                </div>
+                <div class="timeline-header">${headerHtml}</div>
+                <div class="timeline-content">${contentHtml}</div>
             `;
         }
 
-        // タスクまでスクロール
         function scrollToTask(taskId) {
             const taskElements = document.querySelectorAll('.task-wrapper');
             for (let elem of taskElements) {
@@ -1378,7 +1535,6 @@
             }
         }
 
-        // インサイト更新
         function updateInsights() {
             const today = new Date().toISOString().split('T')[0];
             const todayCompleted = tasks.filter(t => 
@@ -1386,12 +1542,9 @@
             ).length;
 
             document.getElementById('todayCompleted').textContent = todayCompleted;
-
-            // アクティビティデータ
             document.getElementById('loginDays').textContent = activityData.loginDays;
             document.getElementById('consecutiveLoginDays').textContent = activityData.consecutiveLoginDays;
 
-            // よく使うタグ
             const tagCount = {};
             tasks.forEach(t => {
                 t.tags.forEach(tag => {
@@ -1404,22 +1557,16 @@
             }
         }
 
-        // キーボードショートカット
         function setupKeyboardShortcuts() {
             document.addEventListener('keydown', (e) => {
-                // Ctrl+Enter でタスク追加
                 if (e.ctrlKey && e.key === 'Enter') {
                     e.preventDefault();
                     addTask();
                 }
-                
-                // Ctrl+F で検索フォーカス
                 if (e.ctrlKey && e.key === 'f') {
                     e.preventDefault();
                     document.getElementById('searchInput').focus();
                 }
-                
-                // / でクイック検索
                 if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
                     e.preventDefault();
                     document.getElementById('searchInput').focus();
@@ -1427,47 +1574,41 @@
             });
         }
 
-        // ローカルストレージ
+        // --- データ永続化 ---
         function saveToLocalStorage() {
             localStorage.setItem('tasks', JSON.stringify(tasks));
             localStorage.setItem('folders', JSON.stringify(folders));
             localStorage.setItem('taskIdCounter', taskIdCounter);
             localStorage.setItem('activityData', JSON.stringify(activityData));
+            localStorage.setItem('unlockedAchievements', JSON.stringify(unlockedAchievements));
         }
 
         function loadFromLocalStorage() {
             const saved = localStorage.getItem('tasks');
             if (saved) {
                 tasks = JSON.parse(saved);
-                // 古いタスクにfolderプロパティがない場合はデフォルトを設定
                 tasks.forEach(task => {
-                    if (!task.folder) {
-                        task.folder = '個人';
-                    }
+                    if (!task.folder) task.folder = '個人';
                 });
-                // ロード時にクリーンアップ
                 cleanupOrphanedTasks();
             }
             const savedFolders = localStorage.getItem('folders');
-            if (savedFolders) {
-                folders = JSON.parse(savedFolders);
-            }
+            if (savedFolders) folders = JSON.parse(savedFolders);
+            
             const savedCounter = localStorage.getItem('taskIdCounter');
-            if (savedCounter) {
-                taskIdCounter = parseInt(savedCounter);
-            }
+            if (savedCounter) taskIdCounter = parseInt(savedCounter);
+            
             const savedActivity = localStorage.getItem('activityData');
-            if (savedActivity) {
-                activityData = JSON.parse(savedActivity);
-            }
+            if (savedActivity) activityData = JSON.parse(savedActivity);
+
+            const savedUnlocked = localStorage.getItem('unlockedAchievements');
+            if (savedUnlocked) unlockedAchievements = JSON.parse(savedUnlocked);
         }
 
-        // 孤立タスクのクリーンアップ
         function cleanupOrphanedTasks() {
             const taskIds = new Set(tasks.map(t => t.id));
             let cleaned = false;
 
-            // 存在しない親を参照しているタスクを修正
             tasks.forEach(task => {
                 if (task.parentId !== null && !taskIds.has(task.parentId)) {
                     console.warn(`孤立タスク検出: ID ${task.id} の親 ${task.parentId} が存在しません。親参照を削除します。`);
@@ -1475,7 +1616,6 @@
                     cleaned = true;
                 }
 
-                // 存在しないサブタスクを削除
                 const validSubtasks = task.subtasks.filter(subId => taskIds.has(subId));
                 if (validSubtasks.length !== task.subtasks.length) {
                     console.warn(`タスク ID ${task.id} から存在しないサブタスク参照を削除しました`);
@@ -1484,59 +1624,25 @@
                 }
             });
 
-            // 表示不可能なタスク（親がサブタスク）を検出してアラート
-            const orphanedTasks = tasks.filter(task => {
-                if (task.parentId === null) return false;
-                const parent = tasks.find(t => t.id === task.parentId);
-                return parent && parent.parentId !== null; // 親がサブタスクの場合
-            });
-
-            if (orphanedTasks.length > 0 && cleaned) {
-                console.warn(`警告: ${orphanedTasks.length}個のタスクが表示不可能な階層にあります`, orphanedTasks);
-            }
-
             if (cleaned) {
                 saveToLocalStorage();
             }
-
             return cleaned;
         }
 
-        // データ整合性チェック（デバッグ用）
         function checkDataIntegrity() {
             const issues = [];
             const taskIds = new Set(tasks.map(t => t.id));
 
             tasks.forEach(task => {
-                // 親の存在チェック
                 if (task.parentId !== null && !taskIds.has(task.parentId)) {
                     issues.push(`タスク ${task.id}: 親 ${task.parentId} が存在しません`);
                 }
-
-                // サブタスクの存在チェック
                 task.subtasks.forEach(subId => {
                     if (!taskIds.has(subId)) {
                         issues.push(`タスク ${task.id}: サブタスク ${subId} が存在しません`);
                     }
                 });
-
-                // 循環参照チェック
-                const visited = new Set();
-                let current = task.id;
-                while (current !== null) {
-                    if (visited.has(current)) {
-                        issues.push(`タスク ${task.id}: 循環参照を検出`);
-                        break;
-                    }
-                    visited.add(current);
-                    const t = tasks.find(t => t.id === current);
-                    current = t ? t.parentId : null;
-                }
-
-                // 深すぎる階層チェック
-                if (visited.size > 10) {
-                    issues.push(`タスク ${task.id}: 階層が深すぎます (${visited.size}階層)`);
-                }
             });
 
             if (issues.length > 0) {
@@ -1548,7 +1654,7 @@
             return true;
         }
 
-        // ユーティリティ
+        // --- ユーティリティ ---
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
