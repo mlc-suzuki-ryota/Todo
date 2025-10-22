@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最強のTODOアプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            background: #0a0a0a;
+            min-height: 100vh;
+            padding: 0;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #0a0a0a;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            color: #ffffff;
+            margin-bottom: 8px;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .folders {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .folder-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid #222;
+            color: #888;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .folder-btn:hover {
+            border-color: #444;
+            color: #fff;
+            background: #141414;
+        }
+
+        .folder-btn.active {
+            background: #fff;
+            color: #000;
+            border-color: #fff;
+        }
+
+        .folder-btn.add-folder {
+            padding: 8px 12px;
+        }
+
+        .folder-name {
+            flex: 1;
+        }
+
+        .folder-count {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .folder-btn.active .folder-count {
+            background: rgba(0, 0, 0, 0.15);
+        }
+
+        .stats {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 32px;
+            font-size: 13px;
+            color: #888;
+            font-weight: 500;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat strong {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .input-section {
+            margin-bottom: 24px;
+        }
+
+        .quick-add {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        #taskInput {
+            flex: 1;
+            padding: 14px 16px;
+            border: 1px solid #222;
+            background: #141414;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        #taskInput:focus {
+            outline: none;
+            border-color: #444;
+            background: #1a1a1a;
+        }
+
+        #taskInput::placeholder {
+            color: #555;
+        }
+
+        .btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #fff;
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .task-options {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tag-input {
+            padding: 10px 14px;
+            border: 1px solid #222;
+            background: #141414;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .tag-input::placeholder {
+            color: #555;
+        }
+
+        .priority-select {
+            padding: 10px 14px;
+            border: 1px solid #222;
+            background: #141414;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid #222;
+            color: #888;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .filter-btn:hover {
+            border-color: #444;
+            color: #fff;
+        }
+
+        .filter-btn.active {
+            background: #fff;
+            color: #000;
+            border-color: #fff;
+        }
+
+        .search-box {
+            flex: 1;
+            padding: 8px 16px;
+            border: 1px solid #222;
+            background: #141414;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .search-box::placeholder {
+            color: #555;
+        }
+
+        .tasks-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .task {
+            background: #0a0a0a;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: background 0.2s;
+            position: relative;
+            border-radius: 8px;
+            border: 1px solid #1a1a1a;
+        }
+
+        .task:hover {
+            background: #0f0f0f;
+            border-color: #222;
+        }
+
+        .task.completed {
+            opacity: 0.5;
+        }
+
+        .task.completed .task-text {
+            text-decoration: line-through;
+            color: #666;
+        }
+
+        .task.priority-high::before {
+            background: #ff4757;
+        }
+
+        .task.priority-medium::before {
+            background: #ffa502;
+        }
+
+        .task.priority-low::before {
+            background: #2ed573;
+        }
+
+        .task.priority-high {
+            border-left: 3px solid #ff4757;
+        }
+
+        .task.priority-medium {
+            border-left: 3px solid #ffa502;
+        }
+
+        .task.priority-low {
+            border-left: 3px solid #2ed573;
+        }
+
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #fff;
+            border-radius: 4px;
+        }
+
+        .task-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .task-text {
+            font-size: 15px;
+            color: #e0e0e0;
+            word-break: break-word;
+            line-height: 1.5;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 12px;
+        }
+
+        .tag {
+            background: #222;
+            color: #aaa;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .priority-badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #222;
+        }
+
+        .priority-high { color: #ff4757; }
+        .priority-medium { color: #ffa502; }
+        .priority-low { color: #2ed573; }
+
+        .due-date {
+            color: #666;
+        }
+
+        .due-date.overdue {
+            color: #ff4757;
+            font-weight: 600;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .task:hover .task-actions {
+            opacity: 1;
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: #666;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .icon-btn:hover {
+            background: #222;
+            color: #fff;
+        }
+
+        .icon-btn.delete:hover {
+            background: #ff4757;
+            color: white;
+        }
+
+        .task-wrapper {
+            background: #0a0a0a;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .task-wrapper.has-subtasks {
+            background: #141414;
+            padding: 12px;
+        }
+
+        .task-wrapper.has-subtasks .task {
+            background: #0a0a0a;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .subtasks-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-left: 12px;
+        }
+
+        .subtask {
+            padding: 10px 16px;
+            background: #1a1a1a;
+            border-radius: 6px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: background 0.2s;
+            border-left: 2px solid #222;
+        }
+
+        .subtask:hover {
+            background: #202020;
+            border-left-color: #333;
+        }
+
+        .subtask-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .subtask-text {
+            color: #ccc;
+            line-height: 1.4;
+        }
+
+        .subtask-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 11px;
+        }
+
+        .subtask.completed {
+            opacity: 0.5;
+        }
+
+        .subtask.completed .subtask-text {
+            text-decoration: line-through;
+            color: #666;
+        }
+
+        .subtask .checkbox {
+            width: 16px;
+            height: 16px;
+        }
+
+        .subtask.priority-high {
+            border-left-color: #ff4757;
+        }
+
+        .subtask.priority-medium {
+            border-left-color: #ffa502;
+        }
+
+        .subtask.priority-low {
+            border-left-color: #2ed573;
+        }
+
+        .subtask-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .subtask:hover .subtask-actions {
+            opacity: 1;
+        }
+
+        .subtask .icon-btn {
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #555;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .insights {
+            margin-top: 40px;
+            padding: 0;
+        }
+
+        .insights h3 {
+            margin-bottom: 16px;
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .insight-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1px;
+            background: #222;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .insight-card {
+            background: #0a0a0a;
+            padding: 20px;
+            transition: background 0.2s;
+        }
+
+        .insight-card:hover {
+            background: #141414;
+        }
+
+        .insight-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .insight-label {
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .keyboard-hint {
+            margin-top: 32px;
+            padding: 16px 20px;
+            background: #141414;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #666;
+            border: 1px solid #222;
+        }
+
+        .keyboard-hint strong {
+            color: #888;
+        }
+
+        .keyboard-hint kbd {
+            background: #222;
+            color: #aaa;
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: none;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .keyboard-hint code {
+            background: #222;
+            color: #aaa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TODO</h1>
+        <div class="stats">
+            <div class="stat"><span>全タスク</span> <strong id="totalTasks">0</strong></div>
+            <div class="stat"><span>完了</span> <strong id="completedTasks">0</strong></div>
+            <div class="stat"><span>残り</span> <strong id="remainingTasks">0</strong></div>
+            <div class="stat"><span>生産性</span> <strong id="productivity">0%</strong></div>
+        </div>
+
+        <div class="folders" id="foldersContainer">
+            <!-- フォルダがここに表示されます -->
+        </div>
+
+        <div class="input-section">
+            <div class="quick-add">
+                <input type="text" id="taskInput" placeholder="新しいタスク" />
+                <button class="btn btn-primary" onclick="addTask()">追加</button>
+            </div>
+            <div class="task-options">
+                <select id="folderSelect" class="priority-select">
+                    <option value="個人">個人</option>
+                    <option value="仕事">仕事</option>
+                    <option value="プロジェクト">プロジェクト</option>
+                </select>
+                <input type="text" id="tagInput" class="tag-input" placeholder="タグ (カンマ区切り)" />
+                <select id="prioritySelect" class="priority-select">
+                    <option value="medium">優先度: 中</option>
+                    <option value="high">優先度: 高</option>
+                    <option value="low">優先度: 低</option>
+                </select>
+                <input type="date" id="dueDateInput" class="tag-input" />
+                <input type="text" id="parentTaskInput" class="tag-input" placeholder="親タスクID (任意)" />
+            </div>
+        </div>
+
+        <div class="filters">
+            <button class="filter-btn active" onclick="filterTasks('all')">すべて</button>
+            <button class="filter-btn" onclick="filterTasks('active')">進行中</button>
+            <button class="filter-btn" onclick="filterTasks('completed')">完了済み</button>
+            <button class="filter-btn" onclick="filterTasks('high')">高優先度</button>
+            <button class="filter-btn" onclick="filterTasks('today')">今日まで</button>
+            <input type="text" id="searchInput" class="search-box" placeholder="検索" oninput="searchTasks()" />
+        </div>
+
+        <div class="tasks-container" id="tasksContainer">
+            <div class="empty-state">
+                <div class="empty-state-icon">🎯</div>
+                <p>タスクがありません。上のフォームから追加してください！</p>
+            </div>
+        </div>
+
+        <div class="insights">
+            <h3>インサイト</h3>
+            <div class="insight-stats">
+                <div class="insight-card">
+                    <div class="insight-value" id="todayCompleted">0</div>
+                    <div class="insight-label">今日完了したタスク</div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-value" id="avgCompletionTime">-</div>
+                    <div class="insight-label">平均完了時間</div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-value" id="mostUsedTag">-</div>
+                    <div class="insight-label">よく使うタグ</div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-value" id="streakDays">0</div>
+                    <div class="insight-label">連続達成日数</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="keyboard-hint">
+            <strong>ショートカット</strong> 
+            <kbd>Ctrl+Enter</kbd> タスク追加 
+            <kbd>Ctrl+F</kbd> 検索フォーカス 
+            <kbd>/</kbd> クイック検索 
+            コンソールで <code>checkDataIntegrity()</code> を実行してデータ整合性チェック
+        </div>
+    </div>
+
+    <script>
+        // データストア
+        let tasks = [];
+        let folders = ['個人', '仕事', 'プロジェクト'];
+        let currentFilter = 'all';
+        let currentFolder = null; // null = すべてのフォルダ
+        let taskIdCounter = 1;
+
+        // 初期化
+        function init() {
+            loadFromLocalStorage();
+            renderFolders();
+            renderTasks();
+            updateStats();
+            setupKeyboardShortcuts();
+        }
+
+        // タスク追加
+        function addTask() {
+            const input = document.getElementById('taskInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+
+            const tagInput = document.getElementById('tagInput').value;
+            const priority = document.getElementById('prioritySelect').value;
+            const dueDate = document.getElementById('dueDateInput').value;
+            const parentId = document.getElementById('parentTaskInput').value;
+
+            // 親タスクバリデーション
+            let validParentId = null;
+            if (parentId) {
+                const parsedParentId = parseInt(parentId);
+                const parent = tasks.find(t => t.id === parsedParentId);
+                
+                if (!parent) {
+                    alert(`エラー: ID ${parsedParentId} のタスクが見つかりません`);
+                    return;
+                }
+                
+                // サブタスクを親にしようとしている場合は警告
+                if (parent.parentId !== null) {
+                    if (!confirm(`警告: タスク「${parent.text}」は既にサブタスクです。\nこのタスクを親にすると表示されなくなりますが続けますか？`)) {
+                        return;
+                    }
+                }
+                
+                validParentId = parsedParentId;
+            }
+
+            const task = {
+                id: taskIdCounter++,
+                text: text,
+                completed: false,
+                priority: priority,
+                tags: tagInput ? tagInput.split(',').map(t => t.trim()).filter(t => t) : [],
+                dueDate: dueDate || null,
+                createdAt: new Date().toISOString(),
+                completedAt: null,
+                parentId: validParentId,
+                subtasks: [],
+                folder: currentFolder || document.getElementById('folderSelect').value
+            };
+
+            if (task.parentId) {
+                const parent = tasks.find(t => t.id === task.parentId);
+                if (parent) {
+                    parent.subtasks.push(task.id);
+                }
+            }
+
+            tasks.push(task);
+            
+            // 入力クリア
+            input.value = '';
+            document.getElementById('tagInput').value = '';
+            document.getElementById('prioritySelect').value = 'medium';
+            document.getElementById('dueDateInput').value = '';
+            document.getElementById('parentTaskInput').value = '';
+
+            saveToLocalStorage();
+            cleanupOrphanedTasks();
+            renderFolders();
+            renderTasks();
+            updateStats();
+            
+            input.focus();
+        }
+
+        // タスク完了トグル
+        function toggleTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                task.completedAt = task.completed ? new Date().toISOString() : null;
+                
+                // サブタスクも同時に完了
+                if (task.completed && task.subtasks.length > 0) {
+                    task.subtasks.forEach(subId => {
+                        const subtask = tasks.find(t => t.id === subId);
+                        if (subtask && !subtask.completed) {
+                            subtask.completed = true;
+                            subtask.completedAt = new Date().toISOString();
+                        }
+                    });
+                }
+
+                saveToLocalStorage();
+                renderTasks();
+                updateStats();
+            }
+        }
+
+        // タスク削除
+        function deleteTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            // サブタスクがある場合は警告
+            let confirmMsg = 'このタスクを削除しますか？';
+            if (task.subtasks.length > 0) {
+                confirmMsg = `このタスクには${task.subtasks.length}個のサブタスクがあります。\nサブタスクも一緒に削除されますが、よろしいですか？`;
+            }
+
+            if (confirm(confirmMsg)) {
+                // サブタスクを再帰的に削除
+                const toDelete = new Set([id]);
+                const collectSubtasks = (taskId) => {
+                    const t = tasks.find(task => task.id === taskId);
+                    if (t && t.subtasks.length > 0) {
+                        t.subtasks.forEach(subId => {
+                            toDelete.add(subId);
+                            collectSubtasks(subId);
+                        });
+                    }
+                };
+                collectSubtasks(id);
+
+                tasks = tasks.filter(t => !toDelete.has(t.id));
+
+                // 親タスクのサブタスク参照も削除
+                tasks.forEach(t => {
+                    t.subtasks = t.subtasks.filter(subId => !toDelete.has(subId));
+                });
+
+                saveToLocalStorage();
+                cleanupOrphanedTasks();
+                renderTasks();
+                updateStats();
+            }
+        }
+
+        // タスク編集
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            const newText = prompt('タスクを編集:', task.text);
+            if (newText !== null && newText.trim()) {
+                task.text = newText.trim();
+                saveToLocalStorage();
+                renderTasks();
+            }
+        }
+
+        // フォルダ切り替え
+        function switchFolder(folder) {
+            currentFolder = folder;
+            renderFolders();
+            renderTasks();
+            updateStats();
+        }
+
+        // フォルダ表示
+        function renderFolders() {
+            const container = document.getElementById('foldersContainer');
+            const folderSelect = document.getElementById('folderSelect');
+            const allCount = tasks.filter(t => !t.parentId).length;
+            
+            const folderCounts = {};
+            folders.forEach(f => {
+                folderCounts[f] = tasks.filter(t => !t.parentId && t.folder === f).length;
+            });
+
+            // フォルダバーを更新
+            container.innerHTML = `
+                <button class="folder-btn ${currentFolder === null ? 'active' : ''}" onclick="switchFolder(null)">
+                    <span class="folder-name">すべて</span>
+                    <span class="folder-count">${allCount}</span>
+                </button>
+                ${folders.map(folder => `
+                    <button class="folder-btn ${currentFolder === folder ? 'active' : ''}" onclick="switchFolder('${folder}')">
+                        <span class="folder-name">${folder}</span>
+                        <span class="folder-count">${folderCounts[folder] || 0}</span>
+                    </button>
+                `).join('')}
+                <button class="folder-btn add-folder" onclick="addFolder()" title="フォルダを追加">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+            `;
+
+            // セレクトボックスも更新
+            if (folderSelect) {
+                folderSelect.innerHTML = folders.map(f => 
+                    `<option value="${f}">${f}</option>`
+                ).join('');
+            }
+        }
+
+        // フォルダ追加
+        function addFolder() {
+            const name = prompt('新しいフォルダ名:');
+            if (name && name.trim() && !folders.includes(name.trim())) {
+                folders.push(name.trim());
+                saveToLocalStorage();
+                renderFolders();
+            } else if (folders.includes(name.trim())) {
+                alert('そのフォルダは既に存在します');
+            }
+        }
+        function filterTasks(filter) {
+            currentFilter = filter;
+            
+            // ボタンのアクティブ状態更新
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            renderTasks();
+        }
+
+        // 検索
+        function searchTasks() {
+            renderTasks();
+        }
+
+        // タスク表示
+        function renderTasks() {
+            const container = document.getElementById('tasksContainer');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            let filteredTasks = tasks.filter(t => !t.parentId); // 親タスクのみ
+
+            // フォルダフィルタ
+            if (currentFolder !== null) {
+                filteredTasks = filteredTasks.filter(t => t.folder === currentFolder);
+            }
+
+            // フィルタ適用
+            if (currentFilter === 'active') {
+                filteredTasks = filteredTasks.filter(t => !t.completed);
+            } else if (currentFilter === 'completed') {
+                filteredTasks = filteredTasks.filter(t => t.completed);
+            } else if (currentFilter === 'high') {
+                filteredTasks = filteredTasks.filter(t => t.priority === 'high');
+            } else if (currentFilter === 'today') {
+                const today = new Date().toISOString().split('T')[0];
+                filteredTasks = filteredTasks.filter(t => t.dueDate && t.dueDate <= today);
+            }
+
+            // 検索適用
+            if (searchTerm) {
+                filteredTasks = filteredTasks.filter(t => 
+                    t.text.toLowerCase().includes(searchTerm) ||
+                    t.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            // ソート: 優先度 > 期限 > 作成日
+            filteredTasks.sort((a, b) => {
+                const priorityOrder = { high: 0, medium: 1, low: 2 };
+                if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                    return priorityOrder[a.priority] - priorityOrder[b.priority];
+                }
+                if (a.dueDate && b.dueDate) {
+                    return new Date(a.dueDate) - new Date(b.dueDate);
+                }
+                if (a.dueDate) return -1;
+                if (b.dueDate) return 1;
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+
+            if (filteredTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">—</div>
+                        <p>タスクが見つかりません</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredTasks.map(task => renderTask(task)).join('');
+        }
+
+        // 単一タスクHTML生成
+        function renderTask(task) {
+            const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
+            const dueDateClass = isOverdue ? 'due-date overdue' : 'due-date';
+            
+            const hasSubtasks = task.subtasks.length > 0;
+            const completedSubtasks = task.subtasks.filter(subId => {
+                const st = tasks.find(t => t.id === subId);
+                return st && st.completed;
+            }).length;
+
+            const subtasksHtml = hasSubtasks ? `
+                <div class="subtasks-container">
+                    ${task.subtasks.map(subId => {
+                        const subtask = tasks.find(t => t.id === subId);
+                        if (!subtask) return '';
+                        
+                        const subIsOverdue = subtask.dueDate && new Date(subtask.dueDate) < new Date() && !subtask.completed;
+                        const subDueDateClass = subIsOverdue ? 'due-date overdue' : 'due-date';
+                        
+                        return `
+                            <div class="subtask ${subtask.completed ? 'completed' : ''} priority-${subtask.priority}">
+                                <input type="checkbox" ${subtask.completed ? 'checked' : ''} 
+                                       onchange="toggleTask(${subtask.id})" class="checkbox" />
+                                <div class="subtask-content">
+                                    <span class="subtask-text">${escapeHtml(subtask.text)}</span>
+                                    ${subtask.tags.length > 0 || subtask.dueDate || subtask.priority !== 'medium' ? `
+                                        <div class="subtask-meta">
+                                            ${subtask.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                                            ${subtask.priority !== 'medium' ? `
+                                                <span class="priority-badge priority-${subtask.priority}">
+                                                    ${subtask.priority === 'high' ? '高' : subtask.priority === 'low' ? '低' : ''}
+                                                </span>
+                                            ` : ''}
+                                            ${subtask.dueDate ? `<span class="${subDueDateClass}">${formatDate(subtask.dueDate)}</span>` : ''}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                <div class="subtask-actions">
+                                    <button class="icon-btn" onclick="editTask(${subtask.id})" title="編集">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                    </button>
+                                    <button class="icon-btn delete" onclick="deleteTask(${subtask.id})" title="削除">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            ` : '';
+
+            const progressText = hasSubtasks ? 
+                `<span style="color: #666; font-size: 11px;">${completedSubtasks}/${task.subtasks.length}</span>` : '';
+
+            return `
+                <div class="task-wrapper ${hasSubtasks ? 'has-subtasks' : ''}">
+                    <div class="task ${task.completed ? 'completed' : ''} priority-${task.priority}">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                               onchange="toggleTask(${task.id})" class="checkbox" />
+                        <div class="task-content">
+                            <div class="task-text">${escapeHtml(task.text)}</div>
+                            <div class="task-meta">
+                                ${task.folder ? `<span class="tag" style="background: #2a2a2a;">📁 ${escapeHtml(task.folder)}</span>` : ''}
+                                ${task.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                                <span class="priority-badge priority-${task.priority}">
+                                    ${task.priority === 'high' ? '高' : task.priority === 'medium' ? '中' : '低'}
+                                </span>
+                                ${task.dueDate ? `<span class="${dueDateClass}">${formatDate(task.dueDate)}</span>` : ''}
+                                ${progressText}
+                                <span style="color: #444; font-size: 11px;">ID ${task.id}</span>
+                            </div>
+                        </div>
+                        <div class="task-actions">
+                            <button class="icon-btn" onclick="editTask(${task.id})" title="編集">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <button class="icon-btn delete" onclick="deleteTask(${task.id})" title="削除">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    ${subtasksHtml}
+                </div>
+            `;
+        }
+
+        // 統計更新
+        function updateStats() {
+            const total = tasks.length;
+            const completed = tasks.filter(t => t.completed).length;
+            const remaining = total - completed;
+            const productivity = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            document.getElementById('totalTasks').textContent = total;
+            document.getElementById('completedTasks').textContent = completed;
+            document.getElementById('remainingTasks').textContent = remaining;
+            document.getElementById('productivity').textContent = productivity + '%';
+
+            // インサイト
+            updateInsights();
+        }
+
+        // インサイト更新
+        function updateInsights() {
+            const today = new Date().toISOString().split('T')[0];
+            const todayCompleted = tasks.filter(t => 
+                t.completed && t.completedAt && t.completedAt.startsWith(today)
+            ).length;
+
+            document.getElementById('todayCompleted').textContent = todayCompleted;
+
+            // 平均完了時間
+            const completedTasks = tasks.filter(t => t.completed && t.completedAt);
+            if (completedTasks.length > 0) {
+                const avgTime = completedTasks.reduce((acc, t) => {
+                    const created = new Date(t.createdAt);
+                    const completed = new Date(t.completedAt);
+                    return acc + (completed - created);
+                }, 0) / completedTasks.length;
+                
+                const hours = Math.round(avgTime / (1000 * 60 * 60));
+                document.getElementById('avgCompletionTime').textContent = 
+                    hours < 24 ? `${hours}時間` : `${Math.round(hours / 24)}日`;
+            }
+
+            // よく使うタグ
+            const tagCount = {};
+            tasks.forEach(t => {
+                t.tags.forEach(tag => {
+                    tagCount[tag] = (tagCount[tag] || 0) + 1;
+                });
+            });
+            const mostUsed = Object.entries(tagCount).sort((a, b) => b[1] - a[1])[0];
+            if (mostUsed) {
+                document.getElementById('mostUsedTag').textContent = mostUsed[0];
+            }
+
+            // 連続達成日数 (簡易版)
+            document.getElementById('streakDays').textContent = calculateStreak();
+        }
+
+        // 連続達成日数計算
+        function calculateStreak() {
+            let streak = 0;
+            let currentDate = new Date();
+            
+            for (let i = 0; i < 30; i++) {
+                const dateStr = currentDate.toISOString().split('T')[0];
+                const hasCompleted = tasks.some(t => 
+                    t.completed && t.completedAt && t.completedAt.startsWith(dateStr)
+                );
+                
+                if (hasCompleted) {
+                    streak++;
+                    currentDate.setDate(currentDate.getDate() - 1);
+                } else {
+                    break;
+                }
+            }
+            
+            return streak;
+        }
+
+        // キーボードショートカット
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl+Enter でタスク追加
+                if (e.ctrlKey && e.key === 'Enter') {
+                    e.preventDefault();
+                    addTask();
+                }
+                
+                // Ctrl+F で検索フォーカス
+                if (e.ctrlKey && e.key === 'f') {
+                    e.preventDefault();
+                    document.getElementById('searchInput').focus();
+                }
+                
+                // / でクイック検索
+                if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    document.getElementById('searchInput').focus();
+                }
+            });
+        }
+
+        // ローカルストレージ
+        function saveToLocalStorage() {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            localStorage.setItem('folders', JSON.stringify(folders));
+            localStorage.setItem('taskIdCounter', taskIdCounter);
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('tasks');
+            if (saved) {
+                tasks = JSON.parse(saved);
+                // 古いタスクにfolderプロパティがない場合はデフォルトを設定
+                tasks.forEach(task => {
+                    if (!task.folder) {
+                        task.folder = '個人';
+                    }
+                });
+                // ロード時にクリーンアップ
+                cleanupOrphanedTasks();
+            }
+            const savedFolders = localStorage.getItem('folders');
+            if (savedFolders) {
+                folders = JSON.parse(savedFolders);
+            }
+            const savedCounter = localStorage.getItem('taskIdCounter');
+            if (savedCounter) {
+                taskIdCounter = parseInt(savedCounter);
+            }
+        }
+
+        // 孤立タスクのクリーンアップ
+        function cleanupOrphanedTasks() {
+            const taskIds = new Set(tasks.map(t => t.id));
+            let cleaned = false;
+
+            // 存在しない親を参照しているタスクを修正
+            tasks.forEach(task => {
+                if (task.parentId !== null && !taskIds.has(task.parentId)) {
+                    console.warn(`孤立タスク検出: ID ${task.id} の親 ${task.parentId} が存在しません。親参照を削除します。`);
+                    task.parentId = null;
+                    cleaned = true;
+                }
+
+                // 存在しないサブタスクを削除
+                const validSubtasks = task.subtasks.filter(subId => taskIds.has(subId));
+                if (validSubtasks.length !== task.subtasks.length) {
+                    console.warn(`タスク ID ${task.id} から存在しないサブタスク参照を削除しました`);
+                    task.subtasks = validSubtasks;
+                    cleaned = true;
+                }
+            });
+
+            // 表示不可能なタスク（親がサブタスク）を検出してアラート
+            const orphanedTasks = tasks.filter(task => {
+                if (task.parentId === null) return false;
+                const parent = tasks.find(t => t.id === task.parentId);
+                return parent && parent.parentId !== null; // 親がサブタスクの場合
+            });
+
+            if (orphanedTasks.length > 0 && cleaned) {
+                console.warn(`警告: ${orphanedTasks.length}個のタスクが表示不可能な階層にあります`, orphanedTasks);
+            }
+
+            if (cleaned) {
+                saveToLocalStorage();
+            }
+
+            return cleaned;
+        }
+
+        // データ整合性チェック（デバッグ用）
+        function checkDataIntegrity() {
+            const issues = [];
+            const taskIds = new Set(tasks.map(t => t.id));
+
+            tasks.forEach(task => {
+                // 親の存在チェック
+                if (task.parentId !== null && !taskIds.has(task.parentId)) {
+                    issues.push(`タスク ${task.id}: 親 ${task.parentId} が存在しません`);
+                }
+
+                // サブタスクの存在チェック
+                task.subtasks.forEach(subId => {
+                    if (!taskIds.has(subId)) {
+                        issues.push(`タスク ${task.id}: サブタスク ${subId} が存在しません`);
+                    }
+                });
+
+                // 循環参照チェック
+                const visited = new Set();
+                let current = task.id;
+                while (current !== null) {
+                    if (visited.has(current)) {
+                        issues.push(`タスク ${task.id}: 循環参照を検出`);
+                        break;
+                    }
+                    visited.add(current);
+                    const t = tasks.find(t => t.id === current);
+                    current = t ? t.parentId : null;
+                }
+
+                // 深すぎる階層チェック
+                if (visited.size > 10) {
+                    issues.push(`タスク ${task.id}: 階層が深すぎます (${visited.size}階層)`);
+                }
+            });
+
+            if (issues.length > 0) {
+                console.error('データ整合性エラー:', issues);
+                return false;
+            }
+            
+            console.log('データ整合性: OK');
+            return true;
+        }
+
+        // ユーティリティ
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            if (dateStr === today.toISOString().split('T')[0]) return '今日';
+            if (dateStr === tomorrow.toISOString().split('T')[0]) return '明日';
+            
+            return `${date.getMonth() + 1}/${date.getDate()}`;
+        }
+
+        // 初期化実行
+        init();
+    </script>
+</body>
+</html>
