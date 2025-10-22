@@ -754,7 +754,7 @@
             <div class="stat"><span>全タスク</span> <strong id="totalTasks">0</strong></div>
             <div class="stat"><span>完了</span> <strong id="completedTasks">0</strong></div>
             <div class="stat"><span>残り</span> <strong id="remainingTasks">0</strong></div>
-            <div class="stat"><span>生産性</span> <strong id="productivity">0%</strong></div>
+            <div class="stat"><span>アクセス回数</span> <strong id="accessCount">0</strong></div>
         </div>
 
         <div class="folders" id="foldersContainer">
@@ -810,23 +810,23 @@
         </div>
 
         <div class="insights">
-            <h3>インサイト</h3>
+            <h3>アクティビティ</h3>
             <div class="insight-stats">
                 <div class="insight-card">
                     <div class="insight-value" id="todayCompleted">0</div>
                     <div class="insight-label">今日完了したタスク</div>
                 </div>
                 <div class="insight-card">
-                    <div class="insight-value" id="avgCompletionTime">-</div>
-                    <div class="insight-label">平均完了時間</div>
+                    <div class="insight-value" id="loginDays">1</div>
+                    <div class="insight-label">ログイン日数</div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-value" id="consecutiveLoginDays">1</div>
+                    <div class="insight-label">連続ログイン日数</div>
                 </div>
                 <div class="insight-card">
                     <div class="insight-value" id="mostUsedTag">-</div>
                     <div class="insight-label">よく使うタグ</div>
-                </div>
-                <div class="insight-card">
-                    <div class="insight-value" id="streakDays">0</div>
-                    <div class="insight-label">連続達成日数</div>
                 </div>
             </div>
         </div>
@@ -847,15 +847,29 @@
         let currentFilter = 'all';
         let currentFolder = null; // null = すべてのフォルダ
         let taskIdCounter = 1;
+        let activityData = {
+            accessCount: 0,
+            loginDays: 1, // サンプル値
+            consecutiveLoginDays: 1, // サンプル値
+            lastAccessDate: null
+        };
 
         // 初期化
         function init() {
             loadFromLocalStorage();
+            trackAccess();
             renderFolders();
             renderTasks();
             renderTimeline();
             updateStats();
             setupKeyboardShortcuts();
+        }
+
+        // アクセス追跡
+        function trackAccess() {
+            activityData.accessCount++;
+            activityData.lastAccessDate = new Date().toISOString();
+            saveToLocalStorage();
         }
 
         // タスク追加
@@ -1246,12 +1260,11 @@
             const total = tasks.length;
             const completed = tasks.filter(t => t.completed).length;
             const remaining = total - completed;
-            const productivity = total > 0 ? Math.round((completed / total) * 100) : 0;
 
             document.getElementById('totalTasks').textContent = total;
             document.getElementById('completedTasks').textContent = completed;
             document.getElementById('remainingTasks').textContent = remaining;
-            document.getElementById('productivity').textContent = productivity + '%';
+            document.getElementById('accessCount').textContent = activityData.accessCount;
 
             // インサイト
             updateInsights();
@@ -1374,19 +1387,9 @@
 
             document.getElementById('todayCompleted').textContent = todayCompleted;
 
-            // 平均完了時間
-            const completedTasks = tasks.filter(t => t.completed && t.completedAt);
-            if (completedTasks.length > 0) {
-                const avgTime = completedTasks.reduce((acc, t) => {
-                    const created = new Date(t.createdAt);
-                    const completed = new Date(t.completedAt);
-                    return acc + (completed - created);
-                }, 0) / completedTasks.length;
-                
-                const hours = Math.round(avgTime / (1000 * 60 * 60));
-                document.getElementById('avgCompletionTime').textContent = 
-                    hours < 24 ? `${hours}時間` : `${Math.round(hours / 24)}日`;
-            }
+            // アクティビティデータ
+            document.getElementById('loginDays').textContent = activityData.loginDays;
+            document.getElementById('consecutiveLoginDays').textContent = activityData.consecutiveLoginDays;
 
             // よく使うタグ
             const tagCount = {};
@@ -1399,31 +1402,6 @@
             if (mostUsed) {
                 document.getElementById('mostUsedTag').textContent = mostUsed[0];
             }
-
-            // 連続達成日数 (簡易版)
-            document.getElementById('streakDays').textContent = calculateStreak();
-        }
-
-        // 連続達成日数計算
-        function calculateStreak() {
-            let streak = 0;
-            let currentDate = new Date();
-            
-            for (let i = 0; i < 30; i++) {
-                const dateStr = currentDate.toISOString().split('T')[0];
-                const hasCompleted = tasks.some(t => 
-                    t.completed && t.completedAt && t.completedAt.startsWith(dateStr)
-                );
-                
-                if (hasCompleted) {
-                    streak++;
-                    currentDate.setDate(currentDate.getDate() - 1);
-                } else {
-                    break;
-                }
-            }
-            
-            return streak;
         }
 
         // キーボードショートカット
@@ -1454,6 +1432,7 @@
             localStorage.setItem('tasks', JSON.stringify(tasks));
             localStorage.setItem('folders', JSON.stringify(folders));
             localStorage.setItem('taskIdCounter', taskIdCounter);
+            localStorage.setItem('activityData', JSON.stringify(activityData));
         }
 
         function loadFromLocalStorage() {
@@ -1476,6 +1455,10 @@
             const savedCounter = localStorage.getItem('taskIdCounter');
             if (savedCounter) {
                 taskIdCounter = parseInt(savedCounter);
+            }
+            const savedActivity = localStorage.getItem('activityData');
+            if (savedActivity) {
+                activityData = JSON.parse(savedActivity);
             }
         }
 
