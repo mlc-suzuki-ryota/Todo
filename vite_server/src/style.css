@@ -798,6 +798,7 @@ h3 {
     gap: 16px;
     padding: 16px;
     transition: all .2s;
+    position: relative; /* For positioning the hover details */
 }
 
 .achievement-card.unlocked {
@@ -812,32 +813,21 @@ h3 {
 .achievement-icon {
     font-size: 32px;
     opacity: .3;
+    transition: all .2s;
 }
 
 .achievement-card.unlocked .achievement-icon {
-    color: #ffa502;
     opacity: 1;
 }
+
+.achievement-card.unlocked:not(:hover) .achievement-icon {
+    color: #ffa502;
+}
+
 
 .achievement-info .name {
     color: #ffffff;
     font-weight: 600;
-    margin-bottom: 4px;
-}
-
-.achievement-info .description {
-    color: #888888;
-    font-size: 13px;
-}
-
-.achievement-card.unlocked .achievement-info .description {
-    color: #aaaaaa;
-}
-
-.achievement-info .unlocked-date {
-    color: #666666;
-    font-size: 11px;
-    margin-top: 8px;
 }
 
 .achievement-card:not(.unlocked) {
@@ -847,4 +837,41 @@ h3 {
 
 .achievement-card:not(.unlocked) .achievement-info .name {
     color: #888888;
+}
+
+.achievement-hover-details {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px); /* Position above the card */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 12px;
+    width: 250px;
+    z-index: 10;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none; /* Allow hovering through it */
+}
+
+.achievement-card:hover .achievement-hover-details {
+    display: block;
+    opacity: 1;
+    transform: translateX(-50%) translateY(-5px);
+}
+
+.achievement-hover-details .description {
+    margin: 0;
+    font-size: 13px;
+    color: #e0e0e0;
+    margin-bottom: 8px;
+}
+
+.achievement-hover-details .unlocked-date {
+    margin: 0;
+    font-size: 11px;
+    color: #888;
 }

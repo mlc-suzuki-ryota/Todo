@@ -1,40 +1,25 @@
-// データストア
-let tasks = [];
-let folders = ['個人', '仕事', 'プロジェクト'];
-let currentFilter = 'all';
-let currentFolder = null; // null = すべてのフォルダ
-let taskIdCounter = 1;
-let activityData = {
-    accessCount: 0,
-    loginDays: 1,
-    consecutiveLoginDays: 1,
-    lastAccessDate: null,
-    lastCompletedDate: null, // 新規追加
-    consecutiveCompletedDays: 0, // 新規追加
-    easterEggClickCount: 0, // 新規追加
-    searchCount: 0 // 新規追加
-};
-let achievements = {};
-let unlockedAchievements = {};
+import { formatDate, escapeHtml } from './utils.js';
+import { state, setInitialState, loadFromLocalStorage, cleanupOrphanedTasks, saveToLocalStorage, setCurrentFolder, setCurrentFilter } from './data.js';
+import { renderAll, renderFolders, renderTasks, updateStats, toggleTimeline, scrollToTask, showAchievementToast, renderAchievements } from './ui.js';
 
 // 初期化
 function init() {
+    const initialState = loadFromLocalStorage();
+    setInitialState(initialState);
+    cleanupOrphanedTasks();
+
     defineAchievements();
-    loadFromLocalStorage();
     trackAccess();
-    renderFolders();
-    renderTasks();
-    renderTimeline();
-    updateStats();
+    renderAll();
     renderAchievements();
     checkAchievements();
     setupKeyboardShortcuts();
-    setupEasterEgg(); // 新規追加
+    setupEasterEgg();
 }
 
 // アチーブメント定義
 function defineAchievements() {
-    achievements = {
+    state.achievements = {
         access_1: { name: '最初の訪問', description: '初めてアプリを使いました。', condition: { type: 'access', value: 1 }, icon: '👋' },
         access_10: { name: '常連さん', description: '10回目の訪問です！', condition: { type: 'access', value: 10 }, icon: '🚶‍♂️' },
         access_50: { name: 'ヘビーユーザー', description: '50回も訪問してくれました！', condition: { type: 'access', value: 50 }, icon: '🏃‍♂️' },
@@ -89,22 +74,22 @@ function defineAchievements() {
 // アクセス追跡
 function trackAccess() {
     const today = new Date().toISOString().split('T')[0];
-    activityData.accessCount++;
+    state.activityData.accessCount++;
 
-    if (activityData.lastAccessDate) {
-        const lastAccess = new Date(activityData.lastAccessDate);
+    if (state.activityData.lastAccessDate) {
+        const lastAccess = new Date(state.activityData.lastAccessDate);
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
 
         if (lastAccess.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0]) {
-            activityData.consecutiveLoginDays++;
+            state.activityData.consecutiveLoginDays++;
         } else if (lastAccess.toISOString().split('T')[0] !== today) {
-            activityData.consecutiveLoginDays = 1;
+            state.activityData.consecutiveLoginDays = 1;
         }
     } else {
-        activityData.consecutiveLoginDays = 1;
+        state.activityData.consecutiveLoginDays = 1;
     }
-    activityData.lastAccessDate = today;
+    state.activityData.lastAccessDate = today;
     saveToLocalStorage();
 }
 
@@ -123,7 +108,7 @@ function addTask() {
     let validParentId = null;
     if (parentId) {
         const parsedParentId = parseInt(parentId);
-        const parent = tasks.find(t => t.id === parsedParentId);
+        const parent = state.tasks.find(t => t.id === parsedParentId);
 
         if (!parent) {
             alert(`エラー: ID ${parsedParentId} のタスクが見つかりません`);
@@ -141,7 +126,7 @@ function addTask() {
     }
 
     const task = {
-        id: taskIdCounter++,
+        id: state.taskIdCounter++,
         text: text,
         completed: false,
         priority: priority,
@@ -151,17 +136,17 @@ function addTask() {
         completedAt: null,
         parentId: validParentId,
         subtasks: [],
-        folder: currentFolder || document.getElementById('folderSelect').value
+        folder: state.currentFolder || document.getElementById('folderSelect').value
     };
 
     if (task.parentId) {
-        const parent = tasks.find(t => t.id === task.parentId);
+        const parent = state.tasks.find(t => t.id === task.parentId);
         if (parent) {
             parent.subtasks.push(task.id);
         }
     }
 
-    tasks.push(task);
+    state.tasks.push(task);
 
     input.value = '';
     document.getElementById('tagInput').value = '';
@@ -179,7 +164,7 @@ function addTask() {
 
 // タスク完了トグル
 function toggleTask(id) {
-    const task = tasks.find(t => t.id === id);
+    const task = state.tasks.find(t => t.id === id);
     if (task) {
         const wasCompleted = task.completed;
         task.completed = !task.completed;
@@ -187,7 +172,7 @@ function toggleTask(id) {
 
         if (task.completed && task.subtasks.length > 0) {
             task.subtasks.forEach(subId => {
-                const subtask = tasks.find(t => t.id === subId);
+                const subtask = state.tasks.find(t => t.id === subId);
                 if (subtask && !subtask.completed) {
                     subtask.completed = true;
                     subtask.completedAt = new Date().toISOString();
@@ -198,20 +183,20 @@ function toggleTask(id) {
         // 連続タスク完了日数の更新
         if (task.completed && !wasCompleted) { // 新しく完了した場合のみ
             const today = new Date().toISOString().split('T')[0];
-            if (activityData.lastCompletedDate) {
-                const lastCompleted = new Date(activityData.lastCompletedDate);
+            if (state.activityData.lastCompletedDate) {
+                const lastCompleted = new Date(state.activityData.lastCompletedDate);
                 const yesterday = new Date(today);
                 yesterday.setDate(yesterday.getDate() - 1);
 
                 if (lastCompleted.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0]) {
-                    activityData.consecutiveCompletedDays++;
+                    state.activityData.consecutiveCompletedDays++;
                 } else if (lastCompleted.toISOString().split('T')[0] !== today) {
-                    activityData.consecutiveCompletedDays = 1;
+                    state.activityData.consecutiveCompletedDays = 1;
                 }
             } else {
-                activityData.consecutiveCompletedDays = 1;
+                state.activityData.consecutiveCompletedDays = 1;
             }
-            activityData.lastCompletedDate = today;
+            state.activityData.lastCompletedDate = today;
         } else if (!task.completed && wasCompleted) { // 完了が解除された場合
             // 連続記録はリセットしないが、lastCompletedDateは再計算が必要になる可能性
             // 今回はシンプルに、完了解除では連続記録をリセットしない
@@ -225,7 +210,7 @@ function toggleTask(id) {
 
 // タスク削除
 function deleteTask(id) {
-    const task = tasks.find(t => t.id === id);
+    const task = state.tasks.find(t => t.id === id);
     if (!task) return;
 
     let confirmMsg = 'このタスクを削除しますか？';
@@ -237,7 +222,7 @@ function deleteTask(id) {
     if (confirm(confirmMsg)) {
         const toDelete = new Set([id]);
         const collectSubtasks = (taskId) => {
-            const t = tasks.find(task => task.id === taskId);
+            const t = state.tasks.find(task => task.id === taskId);
             if (t && t.subtasks.length > 0) {
                 t.subtasks.forEach(subId => {
                     toDelete.add(subId);
@@ -247,9 +232,9 @@ function deleteTask(id) {
         };
         collectSubtasks(id);
 
-        tasks = tasks.filter(t => !toDelete.has(t.id));
+        state.tasks = state.tasks.filter(t => !toDelete.has(t.id));
 
-        tasks.forEach(t => {
+        state.tasks.forEach(t => {
             t.subtasks = t.subtasks.filter(subId => !toDelete.has(subId));
         });
 
@@ -262,7 +247,7 @@ function deleteTask(id) {
 
 // タスク編集
 function editTask(id) {
-    const task = tasks.find(t => t.id === id);
+    const task = state.tasks.find(t => t.id === id);
     if (!task) return;
 
     const newText = prompt('タスクを編集:', task.text);
@@ -275,63 +260,27 @@ function editTask(id) {
 
 // フォルダ切り替え
 function switchFolder(folder) {
-    currentFolder = folder;
+    setCurrentFolder(folder);
     renderFolders();
     renderTasks();
     updateStats();
 }
 
-// フォルダ表示
-function renderFolders() {
-    const container = document.getElementById('foldersContainer');
-    const folderSelect = document.getElementById('folderSelect');
-    const allCount = tasks.filter(t => !t.parentId).length;
-
-    const folderCounts = {};
-    folders.forEach(f => {
-        folderCounts[f] = tasks.filter(t => !t.parentId && t.folder === f).length;
-    });
-
-    container.innerHTML = `
-                <button class="folder-btn ${currentFolder === null ? 'active' : ''}" onclick="switchFolder(null)">
-                    <span class="folder-name">すべて</span>
-                    <span class="folder-count">${allCount}</span>
-                </button>
-                ${folders.map(folder => `
-                    <button class="folder-btn ${currentFolder === folder ? 'active' : ''}" onclick="switchFolder('${folder}')">
-                        <span class="folder-name">${folder}</span>
-                        <span class="folder-count">${folderCounts[folder] || 0}</span>
-                    </button>
-                `).join('')}
-                <button class="folder-btn add-folder" onclick="addFolder()" title="フォルダを追加">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                </button>
-            `;
-
-    if (folderSelect) {
-        folderSelect.innerHTML = folders.map(f =>
-            `<option value="${f}">${f}</option>`
-        ).join('');
-    }
-}
 
 // フォルダ追加
 function addFolder() {
     const name = prompt('新しいフォルダ名:');
-    if (name && name.trim() && !folders.includes(name.trim())) {
-        folders.push(name.trim());
+    if (name && name.trim() && !state.folders.includes(name.trim())) {
+        state.folders.push(name.trim());
         saveToLocalStorage();
         renderFolders();
         checkAchievements(); // フォルダ追加時にもチェック
-    } else if (folders.includes(name.trim())) {
+    } else if (state.folders.includes(name.trim())) {
         alert('そのフォルダは既に存在します');
     }
 }
 function filterTasks(filter) {
-    currentFilter = filter;
+    setCurrentFilter(filter);
 
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.classList.remove('active');
@@ -343,170 +292,18 @@ function filterTasks(filter) {
 
 // 検索
 function searchTasks() {
-    activityData.searchCount++; // 検索回数をカウント
+    state.activityData.searchCount++; // 検索回数をカウント
     saveToLocalStorage();
     renderTasks();
     checkAchievements(); // 検索時にもチェック
 }
 
-// タスク表示
-function renderTasks() {
-    const container = document.getElementById('tasksContainer');
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-
-    let filteredTasks = tasks.filter(t => !t.parentId);
-
-    if (currentFolder !== null) {
-        filteredTasks = filteredTasks.filter(t => t.folder === currentFolder);
-    }
-
-    if (currentFilter === 'active') {
-        filteredTasks = filteredTasks.filter(t => !t.completed);
-    } else if (currentFilter === 'completed') {
-        filteredTasks = filteredTasks.filter(t => t.completed);
-    } else if (currentFilter === 'high') {
-        filteredTasks = filteredTasks.filter(t => t.priority === 'high');
-    } else if (currentFilter === 'today') {
-        const today = new Date().toISOString().split('T')[0];
-        filteredTasks = filteredTasks.filter(t => t.dueDate && t.dueDate <= today);
-    }
-
-    if (searchTerm) {
-        filteredTasks = filteredTasks.filter(t =>
-            t.text.toLowerCase().includes(searchTerm) ||
-            t.tags.some(tag => tag.toLowerCase().includes(searchTerm))
-        );
-    }
-
-    filteredTasks.sort((a, b) => {
-        const priorityOrder = { high: 0, medium: 1, low: 2 };
-        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-            return priorityOrder[a.priority] - priorityOrder[b.priority];
-        }
-        if (a.dueDate && b.dueDate) {
-            return new Date(a.dueDate) - new Date(b.dueDate);
-        }
-        if (a.dueDate) return -1;
-        if (b.dueDate) return 1;
-        return new Date(b.createdAt) - new Date(a.createdAt);
-    });
-
-    if (filteredTasks.length === 0) {
-        container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">—</div>
-                        <p>タスクが見つかりません</p>
-                    </div>
-                `;
-        return;
-    }
-
-    container.innerHTML = filteredTasks.map(task => renderTask(task)).join('');
-}
-
-// 単一タスクHTML生成
-function renderTask(task) {
-    const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
-    const dueDateClass = isOverdue ? 'due-date overdue' : 'due-date';
-
-    const hasSubtasks = task.subtasks.length > 0;
-    const completedSubtasks = task.subtasks.filter(subId => {
-        const st = tasks.find(t => t.id === subId);
-        return st && st.completed;
-    }).length;
-
-    const subtasksHtml = hasSubtasks ? `
-                <div class="subtasks-container">
-                    ${task.subtasks.map(subId => {
-        const subtask = tasks.find(t => t.id === subId);
-        if (!subtask) return '';
-
-        const subIsOverdue = subtask.dueDate && new Date(subtask.dueDate) < new Date() && !subtask.completed;
-        const subDueDateClass = subIsOverdue ? 'due-date overdue' : 'due-date';
-
-        return `
-                            <div class="subtask ${subtask.completed ? 'completed' : ''} priority-${subtask.priority}">
-                                <input type="checkbox" ${subtask.completed ? 'checked' : ''} 
-                                       onchange="toggleTask(${subtask.id})" class="checkbox" />
-                                <div class="subtask-content">
-                                    <span class="subtask-text">${escapeHtml(subtask.text)}</span>
-                                    ${subtask.tags.length > 0 || subtask.dueDate || subtask.priority !== 'medium' ? `
-                                        <div class="subtask-meta">
-                                            ${subtask.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
-                                            ${subtask.priority !== 'medium' ? `
-                                                <span class="priority-badge priority-${subtask.priority}">
-                                                    ${subtask.priority === 'high' ? '高' : subtask.priority === 'low' ? '低' : ''}
-                                                </span>
-                                            ` : ''}
-                                            ${subtask.dueDate ? `<span class="subDueDateClass">${formatDate(subtask.dueDate)}</span>` : ''}
-                                        </div>
-                                    ` : ''}
-                                </div>
-                                <div class="subtask-actions">
-                                    <button class="icon-btn" onclick="editTask(${subtask.id})" title="編集">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                        </svg>
-                                    </button>
-                                    <button class="icon-btn delete" onclick="deleteTask(${subtask.id})" title="削除">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-    }).join('')}
-                </div>
-            ` : '';
-
-    const progressText = hasSubtasks ?
-        `<span style="color: #666; font-size: 11px;">${completedSubtasks}/${task.subtasks.length}</span>` : '';
-
-    return `
-                <div class="task-wrapper ${hasSubtasks ? 'has-subtasks' : ''}">
-                    <div class="task ${task.completed ? 'completed' : ''} priority-${task.priority}">
-                        <input type="checkbox" ${task.completed ? 'checked' : ''} 
-                               onchange="toggleTask(${task.id})" class="checkbox" />
-                        <div class="task-content">
-                            <div class="task-text">${escapeHtml(task.text)}</div>
-                            <div class="task-meta">
-                                ${task.folder ? `<span class="tag" style="background: #2a2a2a;">📁 ${escapeHtml(task.folder)}</span>` : ''}
-                                ${task.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
-                                <span class="priority-badge priority-${task.priority}">
-                                    ${task.priority === 'high' ? '高' : task.priority === 'medium' ? '中' : '低'}
-                                </span>
-                                ${task.dueDate ? `<span class="${dueDateClass}">${formatDate(task.dueDate)}</span>` : ''}
-                                ${progressText}
-                                <span style="color: #444; font-size: 11px;">ID ${task.id}</span>
-                            </div>
-                        </div>
-                        <div class="task-actions">
-                            <button class="icon-btn" onclick="editTask(${task.id})" title="編集">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                </svg>
-                            </button>
-                            <button class="icon-btn delete" onclick="deleteTask(${task.id})" title="削除">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    ${subtasksHtml}
-                </div>
-            `;
-}
-
 // --- アチーブメント関連 ---
 function checkAchievements() {
-    const completedTasks = tasks.filter(t => t.completed);
+    const completedTasks = state.tasks.filter(t => t.completed);
     const completedCount = completedTasks.length;
-    const accessCount = activityData.accessCount;
-    const searchCount = activityData.searchCount;
+    const accessCount = state.activityData.accessCount;
+    const searchCount = state.activityData.searchCount;
 
     // 優先度別の完了タスク数
     const highPriorityCompleted = completedTasks.filter(t => t.priority === 'high').length;
@@ -515,17 +312,17 @@ function checkAchievements() {
 
     // 使用されているユニークなタグとフォルダ
     const uniqueTags = new Set();
-    tasks.forEach(t => t.tags.forEach(tag => uniqueTags.add(tag)));
-    const uniqueFolders = new Set(folders);
+    state.tasks.forEach(t => t.tags.forEach(tag => uniqueTags.add(tag)));
+    const uniqueFolders = new Set(state.folders);
 
     // サブタスク関連
     const parentTasksWithSubtasksCompleted = completedTasks.filter(t => t.subtasks.length > 0).length;
     const subtasksCompletedCount = completedTasks.filter(t => t.parentId !== null).length;
 
-    for (const id in achievements) {
-        if (unlockedAchievements[id]) continue;
+    for (const id in state.achievements) {
+        if (state.unlockedAchievements[id]) continue;
 
-        const ach = achievements[id];
+        const ach = state.achievements[id];
         let conditionMet = false;
 
         switch (ach.condition.type) {
@@ -600,22 +397,22 @@ function checkAchievements() {
                     if (t.subtasks.length === 0) return false; // サブタスクがない親タスクは対象外
                     // 親タスクが完了しており、かつ全てのサブタスクも完了しているか
                     return t.completed && t.subtasks.every(subId => {
-                        const subtask = tasks.find(st => st.id === subId);
+                        const subtask = state.tasks.find(st => st.id === subId);
                         return subtask && subtask.completed;
                     });
                 });
                 break;
             case 'consecutive_login':
-                if (activityData.consecutiveLoginDays >= ach.condition.value) conditionMet = true;
+                if (state.activityData.consecutiveLoginDays >= ach.condition.value) conditionMet = true;
                 break;
             case 'consecutive_completed':
-                if (activityData.consecutiveCompletedDays >= ach.condition.value) conditionMet = true;
+                if (state.activityData.consecutiveCompletedDays >= ach.condition.value) conditionMet = true;
                 break;
             case 'easter_egg_click':
-                if (activityData.easterEggClickCount >= ach.condition.value) conditionMet = true;
+                if (state.activityData.easterEggClickCount >= ach.condition.value) conditionMet = true;
                 break;
             case 'search_count':
-                if (activityData.searchCount >= ach.condition.value) conditionMet = true;
+                if (state.activityData.searchCount >= ach.condition.value) conditionMet = true;
                 break;
         }
 
@@ -626,179 +423,16 @@ function checkAchievements() {
 }
 
 function unlockAchievement(id) {
-    if (unlockedAchievements[id]) return;
+    if (state.unlockedAchievements[id]) return;
 
-    const ach = achievements[id];
+    const ach = state.achievements[id];
     showAchievementToast(ach);
 
-    unlockedAchievements[id] = {
+    state.unlockedAchievements[id] = {
         unlockedAt: new Date().toISOString()
     };
     saveToLocalStorage();
     renderAchievements();
-}
-
-function showAchievementToast(achievement) {
-    const toast = document.getElementById('achievementToast');
-    const message = document.getElementById('toastMessage');
-
-    message.textContent = `'${achievement.name}' を達成しました！`;
-    toast.classList.add('show');
-
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 4000);
-}
-
-function renderAchievements() {
-    const grid = document.getElementById('achievementsGrid');
-    grid.innerHTML = Object.entries(achievements).map(([id, ach]) => {
-        const unlocked = unlockedAchievements[id];
-        const unlockedDate = unlocked ? new Date(unlocked.unlockedAt).toLocaleDateString() : null;
-
-        return `
-                    <div class="achievement-card ${unlocked ? 'unlocked' : ''}">
-                        <div class="achievement-icon">${ach.icon}</div>
-                        <div class="achievement-info">
-                            <div class="name">${ach.name}</div>
-                            <div class="description">${ach.description}</div>
-                            ${unlocked ? `<div class="unlocked-date">${unlockedDate}に達成</div>` : ''}
-                        </div>
-                    </div>
-                `;
-    }).join('');
-}
-
-// --- 統計・描画関連 ---
-function renderAll() {
-    renderFolders();
-    renderTasks();
-    renderTimeline();
-    updateStats();
-}
-
-function updateStats() {
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.completed).length;
-    const remaining = total - completed;
-
-    document.getElementById('totalTasks').textContent = total;
-    document.getElementById('completedTasks').textContent = completed;
-    document.getElementById('remainingTasks').textContent = remaining;
-    document.getElementById('accessCount').textContent = activityData.accessCount;
-
-    updateInsights();
-}
-
-let timelineExpanded = true;
-function toggleTimeline() {
-    timelineExpanded = !timelineExpanded;
-    const container = document.getElementById('timelineContainer');
-    const chevron = document.getElementById('timelineChevron');
-
-    if (timelineExpanded) {
-        container.style.display = 'block';
-        chevron.classList.remove('collapsed');
-    } else {
-        container.style.display = 'none';
-        chevron.classList.add('collapsed');
-    }
-}
-
-function renderTimeline() {
-    const container = document.getElementById('timelineContainer');
-
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-
-    const weekDays = [];
-    for (let i = 0; i < 7; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + mondayOffset + i);
-        weekDays.push(date);
-    }
-
-    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
-
-    const headerHtml = weekDays.map((date, i) => {
-        const isToday = date.toDateString() === today.toDateString();
-        return `
-                    <div class="timeline-day ${isToday ? 'today' : ''}">
-                        <div class="timeline-day-name">${dayNames[date.getDay()]}</div>
-                        <div class="timeline-day-date">${date.getMonth() + 1}/${date.getDate()}</div>
-                    </div>
-                `;
-    }).join('');
-
-    const tasksByDay = weekDays.map(date => {
-        const dateStr = date.toISOString().split('T')[0];
-        return tasks.filter(t => !t.parentId && t.dueDate === dateStr);
-    });
-
-    const contentHtml = tasksByDay.map((dayTasks, i) => {
-        const isToday = weekDays[i].toDateString() === today.toDateString();
-
-        if (dayTasks.length === 0) {
-            return `<div class="timeline-column ${isToday ? 'today' : ''}"><div class="timeline-empty">—</div></div>`;
-        }
-
-        const tasksHtml = dayTasks.map(task => `
-                    <div class="timeline-task ${task.completed ? 'completed' : ''} priority-${task.priority}" 
-                         onclick="scrollToTask(${task.id})" 
-                         title="${escapeHtml(task.text)}">
-                        <div class="timeline-task-text">${escapeHtml(task.text.length > 30 ? task.text.substring(0, 30) + '...' : task.text)}</div>
-                        <div class="timeline-task-meta">
-                            ${task.folder ? `<span class="timeline-task-folder">${escapeHtml(task.folder)}</span>` : ''}
-                            ${task.tags.slice(0, 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join(' ')}
-                        </div>
-                    </div>
-                `).join('');
-
-        return `<div class="timeline-column ${isToday ? 'today' : ''}">${tasksHtml}</div>`;
-    }).join('');
-
-    container.innerHTML = `
-                <div class="timeline-header">${headerHtml}</div>
-                <div class="timeline-content">${contentHtml}</div>
-            `;
-}
-
-function scrollToTask(taskId) {
-    const taskElements = document.querySelectorAll('.task-wrapper');
-    for (let elem of taskElements) {
-        const checkbox = elem.querySelector(`input[onchange*="${taskId}"]`);
-        if (checkbox) {
-            elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            elem.style.background = '#1a1a1a';
-            setTimeout(() => {
-                elem.style.background = '';
-            }, 1000);
-            break;
-        }
-    }
-}
-
-function updateInsights() {
-    const today = new Date().toISOString().split('T')[0];
-    const todayCompleted = tasks.filter(t =>
-        t.completed && t.completedAt && t.completedAt.startsWith(today)
-    ).length;
-
-    document.getElementById('todayCompleted').textContent = todayCompleted;
-    document.getElementById('loginDays').textContent = activityData.loginDays;
-    document.getElementById('consecutiveLoginDays').textContent = activityData.consecutiveLoginDays;
-
-    const tagCount = {};
-    tasks.forEach(t => {
-        t.tags.forEach(tag => {
-            tagCount[tag] = (tagCount[tag] || 0) + 1;
-        });
-    });
-    const mostUsed = Object.entries(tagCount).sort((a, b) => b[1] - a[1])[0];
-    if (mostUsed) {
-        document.getElementById('mostUsedTag').textContent = mostUsed[0];
-    }
 }
 
 function setupKeyboardShortcuts() {
@@ -823,74 +457,18 @@ function setupEasterEgg() {
     const appTitle = document.getElementById('appTitle');
     if (appTitle) {
         appTitle.addEventListener('click', () => {
-            activityData.easterEggClickCount++;
+            state.activityData.easterEggClickCount++;
             saveToLocalStorage();
             checkAchievements();
         });
     }
 }
 
-// --- データ永続化 ---
-function saveToLocalStorage() {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-    localStorage.setItem('folders', JSON.stringify(folders));
-    localStorage.setItem('taskIdCounter', taskIdCounter);
-    localStorage.setItem('activityData', JSON.stringify(activityData));
-    localStorage.setItem('unlockedAchievements', JSON.stringify(unlockedAchievements));
-}
-
-function loadFromLocalStorage() {
-    const saved = localStorage.getItem('tasks');
-    if (saved) {
-        tasks = JSON.parse(saved);
-        tasks.forEach(task => {
-            if (!task.folder) task.folder = '個人';
-        });
-        cleanupOrphanedTasks();
-    }
-    const savedFolders = localStorage.getItem('folders');
-    if (savedFolders) folders = JSON.parse(savedFolders);
-
-    const savedCounter = localStorage.getItem('taskIdCounter');
-    if (savedCounter) taskIdCounter = parseInt(savedCounter);
-
-    const savedActivity = localStorage.getItem('activityData');
-    if (savedActivity) activityData = JSON.parse(savedActivity);
-
-    const savedUnlocked = localStorage.getItem('unlockedAchievements');
-    if (savedUnlocked) unlockedAchievements = JSON.parse(savedUnlocked);
-}
-
-function cleanupOrphanedTasks() {
-    const taskIds = new Set(tasks.map(t => t.id));
-    let cleaned = false;
-
-    tasks.forEach(task => {
-        if (task.parentId !== null && !taskIds.has(task.parentId)) {
-            console.warn(`孤立タスク検出: ID ${task.id} の親 ${task.parentId} が存在しません。親参照を削除します。`);
-            task.parentId = null;
-            cleaned = true;
-        }
-
-        const validSubtasks = task.subtasks.filter(subId => taskIds.has(subId));
-        if (validSubtasks.length !== task.subtasks.length) {
-            console.warn(`タスク ID ${task.id} から存在しないサブタスク参照を削除しました`);
-            task.subtasks = validSubtasks;
-            cleaned = true;
-        }
-    });
-
-    if (cleaned) {
-        saveToLocalStorage();
-    }
-    return cleaned;
-}
-
 function checkDataIntegrity() {
     const issues = [];
-    const taskIds = new Set(tasks.map(t => t.id));
+    const taskIds = new Set(state.tasks.map(t => t.id));
 
-    tasks.forEach(task => {
+    state.tasks.forEach(task => {
         if (task.parentId !== null && !taskIds.has(task.parentId)) {
             issues.push(`タスク ${task.id}: 親 ${task.parentId} が存在しません`);
         }
@@ -910,25 +488,17 @@ function checkDataIntegrity() {
     return true;
 }
 
-// --- ユーティリティ ---
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function formatDate(dateStr) {
-    const date = new Date(dateStr);
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    if (dateStr === today.toISOString().split('T')[0]) return '今日';
-    if (dateStr === tomorrow.toISOString().split('T')[0]) return '明日';
-
-    return `${date.getMonth() + 1}/${date.getDate()}`;
-}
-
 // 初期化実行
 init();
 
+// Expose functions to global scope for HTML onclick handlers
+window.addTask = addTask;
+window.toggleTask = toggleTask;
+window.deleteTask = deleteTask;
+window.editTask = editTask;
+window.switchFolder = switchFolder;
+window.addFolder = addFolder;
+window.filterTasks = filterTasks;
+window.searchTasks = searchTasks;
+window.toggleTimeline = toggleTimeline;
+window.scrollToTask = scrollToTask;
