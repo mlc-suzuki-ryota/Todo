@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TODOアプリ</title>
+    <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1 id="appTitle">TODO</h1>
+        <div class="stats">
+            <div class="stat"><span>全タスク</span> <strong id="totalTasks">0</strong></div>
+            <div class="stat"><span>完了</span> <strong id="completedTasks">0</strong></div>
+            <div class="stat"><span>残り</span> <strong id="remainingTasks">0</strong></div>
+            <div class="stat"><span>アクセス回数</span> <strong id="accessCount">0</strong></div>
+        </div>
+
+        <div class="folders" id="foldersContainer">
+            <!-- フォルダがここに表示されます -->
+        </div>
+
+        <div class="input-section">
+            <div class="quick-add">
+                <input type="text" id="taskInput" placeholder="新しいタスク" />
+                <button class="btn btn-primary" onclick="addTask()">追加</button>
+            </div>
+            <div class="task-options">
+                <select id="folderSelect" class="priority-select">
+                    <option value="個人">個人</option>
+                    <option value="仕事">仕事</option>
+                    <option value="プロジェクト">プロジェクト</option>
+                </select>
+                <input type="text" id="tagInput" class="tag-input" placeholder="タグ (カンマ区切り)" />
+                <select id="prioritySelect" class="priority-select">
+                    <option value="medium">優先度: 中</option>
+                    <option value="high">優先度: 高</option>
+                    <option value="low">優先度: 低</option>
+                </select>
+                <input type="date" id="dueDateInput" class="tag-input" />
+                <input type="text" id="parentTaskInput" class="tag-input" placeholder="親タスクID (任意)" />
+            </div>
+        </div>
+
+        <div class="filters">
+            <button class="filter-btn active" onclick="filterTasks('all')">すべて</button>
+            <button class="filter-btn" onclick="filterTasks('active')">進行中</button>
+            <button class="filter-btn" onclick="filterTasks('completed')">完了済み</button>
+            <button class="filter-btn" onclick="filterTasks('high')">高優先度</button>
+            <button class="filter-btn" onclick="filterTasks('today')">今日まで</button>
+            <input type="text" id="searchInput" class="search-box" placeholder="検索" oninput="searchTasks()" />
+        </div>
+
+        <div class="timeline-section" id="timelineSection">
+            <div class="timeline-toggle" onclick="toggleTimeline()">
+                <h3>今週のタイムライン</h3>
+                <span class="timeline-chevron" id="timelineChevron">▼</span>
+            </div>
+            <div class="timeline-container" id="timelineContainer">
+                <!-- タイムラインがここに表示されます -->
+            </div>
+        </div>
+
+        <div class="tasks-container" id="tasksContainer">
+            <div class="empty-state">
+                <div class="empty-state-icon">🎯</div>
+                <p>タスクがありません。上のフォームから追加してください！</p>
+            </div>
+        </div>
+
+        <div class="insights">
+            <h3>アクティビティ</h3>
+            <div class="insight-stats">
+                <div class="insight-card">
+                    <div class="insight-value" id="todayCompleted">0</div>
+                    <div class="insight-label">今日完了したタスク</div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-value" id="loginDays">1</div>
+                    <div class="insight-label">ログイン日数</div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-value" id="consecutiveLoginDays">1</div>
+                    <div class="insight-label">連続ログイン日数</div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-value" id="mostUsedTag">-</div>
+                    <div class="insight-label">よく使うタグ</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="achievements-section">
+            <h3>アチーブメント</h3>
+            <div class="achievements-grid" id="achievementsGrid">
+                <!-- アチーブメントがここに表示されます -->
+            </div>
+        </div>
+
+        <div class="keyboard-hint">
+            <strong>ショートカット</strong> 
+            <kbd>Ctrl+Enter</kbd> タスク追加 
+            <kbd>Ctrl+F</kbd> 検索フォーカス 
+            <kbd>/</kbd> クイック検索 
+            コンソールで <code>checkDataIntegrity()</code> を実行してデータ整合性チェック
+        </div>
+    </div>
+
+    <div id="achievementToast" class="toast">
+        <div class="toast-icon">🏆</div>
+        <div class="toast-content">
+            <div class="toast-title">アチーブメント達成！</div>
+            <div class="toast-message" id="toastMessage"></div>
+        </div>
+    </div>
+
+    <script src="src/main.js"></script>
+</body>
+</html>
